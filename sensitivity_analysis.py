@@ -8,6 +8,7 @@ import re
 import scipy.stats as ss
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import os
 
 
 class Weights:
@@ -180,7 +181,9 @@ class MonteCarlo(Weights):
             d.finalScore()
 
 p = MonteCarlo()
-p.readData(r"C:\Users\mihai\OneDrive\Desktop\DSE\trade_off.txt")
+currentDirectory = str(os.getcwd()) + "\\trade_off.txt"
+#p.readData(r"C:\Users\mihai\OneDrive\Desktop\DSE\trade_off.txt")
+p.readData(currentDirectory)
 p.iterateWeights(100)
 
 
