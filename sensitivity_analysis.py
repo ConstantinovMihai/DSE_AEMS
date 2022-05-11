@@ -3,14 +3,12 @@ Sensitivity Analysis For The Trade-Off
 """
 
 import numpy as np
-from random import random
 import re
 import scipy.stats as ss
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import os
 import pandas as pd
-import seaborn as sns
 
 class Weights:
     def __init__(self) -> None:
@@ -19,7 +17,6 @@ class Weights:
         self.scores = []
         self.winner = -1
         self.partial_scores = []
-
 
     # each sub-system is a matrix of weights, and their weighted sum represents the final score
     def readData(self, filename):
@@ -53,14 +50,42 @@ class Weights:
             self.partial_scores.append(np.average(crit[1:], axis=1, weights=crit[0]))
 
 
-    def finalScore(self):
+    def finalScore(self, print_it=False):
         """
         Computes the final score and decides a winner
+        :param:  print (bool) - if set true it prints the index of the winner
         """
         self.partialScores()
         self.winner = np.argmax(np.average(self.partial_scores, axis=0, weights=self.overall_weights))
-        print(self.winner)
+
+        if print_it:
+            print_it(self.winner)
+
         return self.winner
+
+        
+    def visualiseResults(self, freq, nb_experiments=1, plot=False, x=[ "Balloon","VTOL", "N-copter"], print_it=False, name=""):
+        """
+        Functionality to be able to visualise the results of the sensitivity analysis 
+        :param: nb_experiments - the number of Monte Carlo simulations to be performed
+        :param: Freq - a vector with the frequencies of various options as simulated by the Monte Carlo method
+        :param: plot - if True, it will generate the histogram
+        :param: x - the different options whose frequencies has to be visualised
+        :param: name - name under which to save the histograms
+        Generates a histogram with the options' frequencies values
+        """
+        freq = freq / nb_experiments * 100
+        if print_it:
+            print(f"Options1 - {round(freq[0], 3)}")
+            print(f"Options2 - {round(freq[1], 3)}")
+            print(f"Options3 - {round(freq[2], 3)}") 
+            print(f"Total iterations - {nb_experiments}")
+        # plot the histogram
+        if plot:
+            df = pd.DataFrame({"Options":x,'Freq. (%)':freq})
+            df.set_index("Options")['Freq. (%)'].plot.bar(rot=0)
+            plt.savefig('Histogram' + name + '.png')
+            plt.show()
 
 
 
@@ -76,55 +101,87 @@ class OneAtATime(Weights):
         Weights.__init__(self)
 
 
-    def iterateChanges(self, increments, vector):
+    def iterateChanges(self, increments : np.array, vector : np.array):
         """
         auxiliary method used to iterate among the different combinations for the partial weights in a vector
+        :param: increments (np.array) - increments added to the initial value to perform OAT
+        Returns options array, containing the number of wins for each design option
         """
          # for the overall weights:
+        options = np.zeros(3)
         for idx, weight in enumerate(vector):
             # change the overall weight to analyse its effect
             for increment in increments:
                 vector[idx] = max(weight + increment, 0)
-                self.finalScore()
+                decision = self.finalScore()
+                # increment the corresponding value for the winner of the trade off
+                options[decision] += 1
             # after all the iterations, retrieve the all value for the weight
             vector[idx] = weight
+
+        return options
 
     
     def sensitivityOverallWeights(self, increments):
         """
         explores the effect of changing the weights assigned to the overall criteria 
+        :param: increments (np.array) - increments added to the initial value to perform OAT
         """
-        self.iterateChanges(increments, self.overall_weights)
+        options = np.zeros(3)
+        options += self.iterateChanges(increments, self.overall_weights)
+        return options
 
 
     def sensitivityPartialWeightsScores(self, increments):
         """
         Explores the effect of changing weights for partial scores
+        :param: increments (np.array) - increments added to the initial value to perform OAT
         """
+        options = np.zeros(3)
         for crit in self.scores:
             for weight in crit:
-                self.iterateChanges(increments, weight)
-    
+                options += self.iterateChanges(increments, weight)
+        return options
 
-    def createIncrements(self):
+
+    def createIncrements(self, low_lim=-2, high_lim=2, step=0.25):
         """
         create the increments array
+        :param: low_lim - the lower limit for the increments 
+        :param: high_lim - the higher limit for the increments 
         """
-        increments = np.arange(-2, 2, 0.5)
+        increments = np.arange(low_lim, high_lim, step)
         # remove the increment = 0 entry in the array
         increments  = np.delete(increments, np.where(increments == 0))
         return increments
 
 
-    def perform(self):
+    def perform(self, low_lim=-2, high_lim=2, step=0.25):
         """
         Implements the one at a time technique
+        :param: low_lim - the lower limit for the increments 
+        :param: high_lim - the higher limit for the increments 
+        :param: step - the step explored by the the OAT
         """
         # check if varying the weights does not affect the outcome
         # by varying the outcome
-        increments = self.createIncrements()
-        self.sensitivityOverallWeights(increments)
-        self.sensitivityPartialWeightsScores(increments)
+        options = np.zeros(3)
+        increments = self.createIncrements(low_lim, high_lim, step)
+        
+        options += self.sensitivityOverallWeights(increments)
+        options += self.sensitivityPartialWeightsScores(increments)
+        print(f"options {options}")
+
+        self.visualiseResults(options)
+
+    def iterateLimitsStep(self):
+        steps = np.arange(0.1, 1, 0.05)
+        lims = np.arange(0.5, 3, 0.1)
+        for step in steps:
+            print(f"step is {step}")
+            for lim in lims:
+                print(f"lim is {round(lim,1)}")
+                self.perform(-lim, lim, step)
        
 
 
@@ -154,6 +211,14 @@ class MonteCarlo(Weights):
         nums = np.random.choice(x, size = nb_instances, p = prob) / deviation
         return nums
     
+    def rectifyValues(self, values):
+        """
+        Utility function which rectifies the negative values
+        In values matrix to 0
+        """
+        values[values < 0] = 0.01
+        return values
+
 
     def generateNoisyWeights(self, deviation=4):
         """
@@ -167,7 +232,7 @@ class MonteCarlo(Weights):
 
         noise = self.generateRandomNumbers(len(d.overall_weights), deviation)
         d.overall_weights = d.overall_weights + noise
-        d.overall_weights[d.overall_weights < 0] = 0
+       
 
         # unfortunately we could not find a way to reshape 
         # either reshape the list into np.array without errors/deprecation warnings
@@ -177,33 +242,15 @@ class MonteCarlo(Weights):
             for row in score:
                 noise = self.generateRandomNumbers(len(row), deviation)
                 row += noise
-            
+                row = self.rectifyValues(row)
+
+        self.rectifyValues(d.overall_weights)
+
+
         return d
 
-    def visualiseResults(self, options, nb_experiments, plot=True):
-        """
-        Functionality to be able to visualise the results of the sensitivity analysis 
-        :param: nb_experiments - the number of Monte Carlo simulations to be performed
-        :param: options - a vector with the values of various options as simulated by the Monte Carlo method
-        :param: plot - if True, it will generate the histogram
-        Generates a histogram with the options values
-        """
-        options = options / nb_experiments * 100
-        print(f"Options1 - {round(options[0], 3)}")
-        print(f"Options2 - {round(options[1], 3)}")
-        print(f"Options3 - {round(options[2], 3)}") 
-        print(f"Total iterations - {nb_experiments}")
-        # plot the histogram
-        print(f"len options {len(options)}")
-        if plot:
-            x = [ "Balloon","VTOL", "N-copter"]
-            freq = options
-            df = pd.DataFrame({"Options":x,'Freq. (%)':freq})
-            df.set_index("Options")['Freq. (%)'].plot.bar(rot=0)
-            plt.show()
-      
 
-    def iterateWeights(self, nb_experiments=1000, deviation=4):
+    def iterateWeights(self, deviation=4, nb_experiments=1000,):
         """
         Main method of the class, generates nb_experiments noisy matrices and checks 
         whether or not they predict the same final design option as the "clean" matrix
@@ -217,7 +264,16 @@ class MonteCarlo(Weights):
             option = d.finalScore()
             options[option] += 1
 
-        self.visualiseResults(options, nb_experiments)
+        self.visualiseResults(options, nb_experiments, plot=True)
+
+    def iterateDeviations(self):
+        """
+        Iterates among different values for the deviation in order to explore the sensibility of the model
+        To the chosen probability distribution
+        """  
+        deviations = np.arange(2,5,0.25)
+        for deviation in deviations:
+            self.iterateWeights(deviation)
 
         
 
@@ -225,4 +281,5 @@ if __name__ == "__main__":
     p = MonteCarlo()
     currentDirectory = str(os.getcwd()) + "\\trade_off.txt"
     p.readData(currentDirectory)
-    p.iterateWeights()
+    p.iterateDeviations()
+   
