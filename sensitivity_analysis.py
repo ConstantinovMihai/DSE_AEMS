@@ -2,6 +2,7 @@
 Sensitivity Analysis For The Trade-Off
 """
 
+from email.headerregistry import HeaderRegistry
 import numpy as np
 import re
 import scipy.stats as ss
@@ -174,6 +175,7 @@ class OneAtATime(Weights):
 
         self.visualiseResults(options)
 
+
     def iterateLimitsStep(self):
         steps = np.arange(0.1, 1, 0.05)
         lims = np.arange(0.5, 3, 0.1)
@@ -196,6 +198,7 @@ class MonteCarlo(Weights):
         """
         Weights.__init__(self)
 
+
     def generateRandomNumbers(self, nb_instances, deviation=4):
         """ 
         Generate random numbers by drawing numbers from multinomial distributions
@@ -211,6 +214,7 @@ class MonteCarlo(Weights):
         nums = np.random.choice(x, size = nb_instances, p = prob) / deviation
         return nums
     
+
     def rectifyValues(self, values):
         """
         Utility function which rectifies the negative values
@@ -245,17 +249,16 @@ class MonteCarlo(Weights):
                 row = self.rectifyValues(row)
 
         self.rectifyValues(d.overall_weights)
-
-
         return d
 
 
-    def iterateWeights(self, deviation=4, nb_experiments=1000,):
+    def iterateWeights(self, deviation=4, nb_experiments=100):
         """
         Main method of the class, generates nb_experiments noisy matrices and checks 
         whether or not they predict the same final design option as the "clean" matrix
         :param: nb_experiments - the number of Monte Carlo simulations to be performed
         :param: deviation - sets the standard deviation - the lower the deviation value, the higher the variance
+        Returns the vector of frequencies
         """
         options = np.zeros(3)
         for i in range(nb_experiments):
@@ -264,22 +267,50 @@ class MonteCarlo(Weights):
             option = d.finalScore()
             options[option] += 1
 
-        self.visualiseResults(options, nb_experiments, plot=True)
+        self.visualiseResults(options, nb_experiments)
+        print(options / sum(options))
+        return options / sum(options)
 
-    def iterateDeviations(self):
+    
+    def generateVisualisation(self, x, y):
+        """
+        Generates visualisation of the various percentages of the trade off wins
+        Based on the standard deviations used when generating the simulations
+        :param: x (list)  - elements on the x axis
+        :param: y (list of tuples) - elements on the y axis 
+        """
+        ###                    ###
+        ### ADD YOUR CODE HERE ###
+        ###                    ###
+        y1 = y[:,0]
+        y2 = y[:,1]
+        y3 = y[:,2]
+        plt.plot(x, y1, color = 'r', label = "Balloon")
+        plt.plot(x, y2, color = 'g', label = "VTOL")
+        plt.plot(x, y3, color = 'b', label = "N-copter")
+        plt.legend()
+        plt.show()
+        
+
+    def iterateDeviations(self, nb_experiments=100, plot=False):
         """
         Iterates among different values for the deviation in order to explore the sensibility of the model
+        :param: plot - if True, it will generate the histogram
         To the chosen probability distribution
         """  
         deviations = np.arange(2,5,0.25)
-        for deviation in deviations:
-            self.iterateWeights(deviation)
+        freqs = np.zeros((len(deviations), 3))
 
+        for idx, deviation in enumerate(deviations):
+            freq = self.iterateWeights(deviation, nb_experiments)
+            freqs[idx] = freq
         
+        self.generateVisualisation(deviations, freqs)
 
+    
 if __name__ == "__main__":
     p = MonteCarlo()
     currentDirectory = str(os.getcwd()) + "\\trade_off.txt"
     p.readData(currentDirectory)
-    p.iterateDeviations()
+    p.iterateDeviations(nb_experiments = 100, plot=True)
    
