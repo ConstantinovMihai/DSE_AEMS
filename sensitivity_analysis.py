@@ -48,7 +48,15 @@ class Weights:
         # perform the weighted average sum
         self.partial_scores = []
         for crit in self.scores:
-            self.partial_scores.append(np.average(crit[1:], axis=1, weights=crit[0]))
+            weights = crit[0]
+            # dirty trick to avoid the situation of the sum of weights being 0
+            # overall it should not affect the final result
+            # it just assumes all the weights are equal
+            # indeed a bit biased towards a particular output, but in the long run it 
+            # should not affect much the final result
+            if not sum(crit[0]):
+                weights = np.ones(len(crit[0])) 
+            self.partial_scores.append(np.average(crit[1:], axis=1, weights=weights))
 
 
     def finalScore(self, print_it=False):
@@ -211,7 +219,7 @@ class MonteCarlo(Weights):
         xU, xL = x + 0.5, x - 0.5 
         prob = ss.norm.cdf(xU, scale = 3) - ss.norm.cdf(xL, scale = 3)
         prob = prob / prob.sum() # normalize the probabilities so their sum is 1
-        nums = np.random.choice(x, size = nb_instances, p = prob) / deviation
+        nums = np.random.choice(x, size = nb_instances, p = prob) / deviation 
         return nums
     
 
@@ -279,16 +287,16 @@ class MonteCarlo(Weights):
         :param: x (list)  - elements on the x axis
         :param: y (list of tuples) - elements on the y axis 
         """
-        ###                    ###
-        ### ADD YOUR CODE HERE ###
-        ###                    ###
         y1 = y[:,0]
         y2 = y[:,1]
         y3 = y[:,2]
         plt.plot(x, y1, color = 'r', label = "Balloon")
         plt.plot(x, y2, color = 'g', label = "VTOL")
         plt.plot(x, y3, color = 'b', label = "N-copter")
+        plt.xlabel("Deviation")
+        plt.ylabel("Frequency")
         plt.legend()
+        plt.grid(True)
         plt.show()
         
 
@@ -298,19 +306,19 @@ class MonteCarlo(Weights):
         :param: plot - if True, it will generate the histogram
         To the chosen probability distribution
         """  
-        deviations = np.arange(2,5,0.25)
+        deviations = np.arange(0.5,5,0.25)
         freqs = np.zeros((len(deviations), 3))
 
         for idx, deviation in enumerate(deviations):
             freq = self.iterateWeights(deviation, nb_experiments)
             freqs[idx] = freq
         
-        self.generateVisualisation(deviations, freqs)
+        self.generateVisualisation(3 / deviations, freqs)
 
     
 if __name__ == "__main__":
     p = MonteCarlo()
     currentDirectory = str(os.getcwd()) + "\\trade_off.txt"
     p.readData(currentDirectory)
-    p.iterateDeviations(nb_experiments = 100, plot=True)
+    p.iterateDeviations(nb_experiments = 10000, plot=True)
    
