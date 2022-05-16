@@ -81,6 +81,7 @@ def monteCarloSensAnalysis(inputs : list, nb_exp : int):
         val = random()
         x_val.append(-0.1 + val / 5) 
 
-inputs = [50, 20/180 * np.pi, 20]
-oatAnalysis(inputs)
+if __name__ == "__main__":
+    inputs = [50, 20/180 * np.pi, 20]
+    oatAnalysis(inputs)
 

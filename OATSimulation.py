@@ -36,7 +36,7 @@ class OneAtATime(Weights):
                 # rectify the values
                 new_score = weight + increment
                 # check if the iteration is valid, if not, skip it
-                skip = (new_score < 0)
+                skip = (new_score < 0) or (new_score > 4 and overall_weight) or (new_score > 5 and not overall_weight) 
                 if skip:
                     continue
 
@@ -82,7 +82,7 @@ class OneAtATime(Weights):
         Returns an np.array containing the increments  (without value 0)
         """
         increments = np.arange(-abs(lim), abs(lim), step)
-        # remove the increment = 0 entry in the array
+        # removes the increment = 0 entry in the array
         increments  = np.delete(increments, np.where(increments == 0))
         return increments
 
@@ -101,7 +101,7 @@ class OneAtATime(Weights):
         
         increments = self.createIncrements(lim, step)
         
-        options += self.sensitivityOverallWeights(increments)
+        # options += self.sensitivityOverallWeights(increments)
         options += self.sensitivityPartialWeightsScores(increments)
 
         # normalise the frequency values
