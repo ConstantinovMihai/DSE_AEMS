@@ -36,7 +36,7 @@ class OneAtATime(Weights):
                 # rectify the values
                 new_score = weight + increment
                 # check if the iteration is valid, if not, skip it
-                skip = (new_score < 0) or (new_score > 4 and overall_weight) or (new_score > 5 and not overall_weight)
+                skip = (new_score < 0)
                 if skip:
                     continue
 

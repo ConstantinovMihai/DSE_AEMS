@@ -45,7 +45,7 @@ class MonteCarlo(Weights):
         In values matrix to 0
         """
         values[values < 0] = 0
-        values[values > 5] = 5
+      
         return values
 
 
@@ -61,7 +61,7 @@ class MonteCarlo(Weights):
 
         noise = self.generateRandomNumbers(len(d.overall_weights), deviation)
         d.overall_weights = d.overall_weights + noise
-        d.overall_weights[d.overall_weights > 4] = 4
+       
        
 
         # unfortunately we could not find a way to reshape 
