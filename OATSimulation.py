@@ -36,7 +36,7 @@ class OneAtATime(Weights):
                 # rectify the values
                 new_score = weight + increment
                 # check if the iteration is valid, if not, skip it
-                skip = (new_score < 0)
+                skip = (new_score < 0) or (new_score > 4 and overall_weight) or (new_score > 5 and not overall_weight) 
                 if skip:
                     continue
 
@@ -82,16 +82,17 @@ class OneAtATime(Weights):
         Returns an np.array containing the increments  (without value 0)
         """
         increments = np.arange(-abs(lim), abs(lim), step)
-        # remove the increment = 0 entry in the array
+        # removes the increment = 0 entry in the array
         increments  = np.delete(increments, np.where(increments == 0))
         return increments
 
 
-    def perform(self, lim : float, step : float):
+    def perform(self, lim : float, step : float, weight : bool):
         """
         Implements the one at a time technique
         :param: lim (float) - the higher limit for the increments 
         :param: step (float) - the step explored by the the OAT
+        :param: weight - if true it will assign noise also to the overall weights
         Returns the number of "victories" for each design option, as a numpy array
         """
         # check if varying the weights does not affect the outcome
@@ -101,7 +102,9 @@ class OneAtATime(Weights):
         
         increments = self.createIncrements(lim, step)
         
-        options += self.sensitivityOverallWeights(increments)
+        if weight:
+            options += self.sensitivityOverallWeights(increments)
+        
         options += self.sensitivityPartialWeightsScores(increments)
 
         # normalise the frequency values
@@ -110,12 +113,13 @@ class OneAtATime(Weights):
         return options
         
 
-    def iterateLimitsStep(self, lim : float, step : float):
+    def iterateLimitsStep(self, lim : float, step : float, weight : bool):
         """
         The main loop for the One-At-A-Time technique, 
         iterates among different steps values
         :param: lim (float) - the higher limit for the increments 
         :param: step (float) - the step explored by the the OAT
+        :param: weight - if true it will assign noise also to the overall weights
         And limits values and perform the OAT
         """
         # changes the step for the OAT, in order to check if the scoring system is not too course
@@ -132,7 +136,7 @@ class OneAtATime(Weights):
             print(f"step is {step}")
             for idx, lim in enumerate(lims):
                 print(f"lim is {round(lim,2)}")
-                freqs[idx] = self.perform(lim, step)
+                freqs[idx] = self.perform(lim, step, weight)
               
                 
              
