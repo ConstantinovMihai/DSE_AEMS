@@ -3,6 +3,7 @@ This file contains the implementation of the Monte Carlo class
 Which performs the simulations 
 """
 
+from isort import file
 import numpy as np
 import scipy.stats as ss
 from copy import deepcopy
@@ -19,6 +20,12 @@ class MonteCarlo(Weights):
         """
         Weights.__init__(self)
 
+    def __init__(self, filename) -> None:
+        """
+        Constructor which takes the filename and places the data inside the object
+        """
+        super().__init__()
+        self = self.readData(filename)
 
     def generateRandomNumbers(self, nb_instances, deviation=4):
         """ 

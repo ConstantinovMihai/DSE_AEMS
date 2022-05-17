@@ -4,7 +4,6 @@ Which is one of the sensitivity analysis techniques
 """
 
 import numpy as np
-from sqlalchemy import over
 from WeightClass import Weights
 
 class OneAtATime(Weights):
@@ -17,8 +16,14 @@ class OneAtATime(Weights):
         Constructor for the OAT Class
         """
         Weights.__init__(self)
+    
+    def __init__(self, filename) -> None:
+        """
+        Constructor which takes the filename and places the data inside the object
+        """
+        super().__init__()
+        self = self.readData(filename)
       
-
 
     def iterateChanges(self, increments : np.array, vector : np.array, overall_weight : bool):
         """
@@ -33,10 +38,11 @@ class OneAtATime(Weights):
         for idx, weight in enumerate(vector):
             # change the overall weight to analyse its effect
             for increment in increments:
+                print(f"increment is {increment}")
                 # rectify the values
                 new_score = weight + increment
                 # check if the iteration is valid, if not, skip it
-                skip = (new_score < 0) or (new_score > 4 and overall_weight) or (new_score > 5 and not overall_weight) 
+                skip = (new_score < 0) or (new_score > 5 and overall_weight) or (new_score > 4 and not overall_weight) 
                 if skip:
                     continue
 
@@ -81,6 +87,7 @@ class OneAtATime(Weights):
         :param: step (float) - the step explored by the the OAT
         Returns an np.array containing the increments  (without value 0)
         """
+        print(f"I HAVE BEEN CALLED")
         increments = np.arange(-abs(lim), abs(lim), step)
         # removes the increment = 0 entry in the array
         increments  = np.delete(increments, np.where(increments == 0))
@@ -92,7 +99,7 @@ class OneAtATime(Weights):
         Implements the one at a time technique
         :param: lim (float) - the higher limit for the increments 
         :param: step (float) - the step explored by the the OAT
-        :param: weight - if true it will assign noise also to the overall weights
+        :param: weight - if true it will assign noise only to the overall weights
         Returns the number of "victories" for each design option, as a numpy array
         """
         # check if varying the weights does not affect the outcome
@@ -100,12 +107,13 @@ class OneAtATime(Weights):
         # vector containing the nb of wins for each design option for this particular time step
         options = np.zeros(3)
         
-        increments = self.createIncrements(lim, step)
+        # increments = self.createIncrements(lim, step)
+        increments = np.array([-lim, lim])
         
-        if weight:
-            options += self.sensitivityOverallWeights(increments)
-        
-        options += self.sensitivityPartialWeightsScores(increments)
+        options += self.sensitivityOverallWeights(increments)
+
+        if not weight:
+            options += self.sensitivityPartialWeightsScores(increments)
 
         # normalise the frequency values
         options = options / np.sum(options) * 100
@@ -119,7 +127,7 @@ class OneAtATime(Weights):
         iterates among different steps values
         :param: lim (float) - the higher limit for the increments 
         :param: step (float) - the step explored by the the OAT
-        :param: weight - if true it will assign noise also to the overall weights
+        :param: weight - if true it will assign noise only to the overall weights
         And limits values and perform the OAT
         """
         # changes the step for the OAT, in order to check if the scoring system is not too course
@@ -137,7 +145,5 @@ class OneAtATime(Weights):
             for idx, lim in enumerate(lims):
                 print(f"lim is {round(lim,2)}")
                 freqs[idx] = self.perform(lim, step, weight)
-              
-                
              
             self.generateVisualisation(lims, freqs)
