@@ -16,6 +16,7 @@ class OneAtATime(Weights):
         Constructor for the OAT Class
         """
         Weights.__init__(self)
+
     
     def __init__(self, filename) -> None:
         """
@@ -38,7 +39,6 @@ class OneAtATime(Weights):
         for idx, weight in enumerate(vector):
             # change the overall weight to analyse its effect
             for increment in increments:
-                print(f"increment is {increment}")
                 # rectify the values
                 new_score = weight + increment
                 # check if the iteration is valid, if not, skip it
@@ -50,8 +50,8 @@ class OneAtATime(Weights):
                 decision = self.finalScore()
                 # increment the corresponding value for the winner of the trade off
                 options[decision] += 1
-            # after all the iterations, retrieve the all value for the weight
-            vector[idx] = weight
+                # after all the iterations, retrieve the all value for the weight
+                vector[idx] = weight
 
         return options
 

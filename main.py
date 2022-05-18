@@ -19,7 +19,6 @@ def runOATSimulation(filename : string, lim : float = 2.1, step : float = 0.1, w
     :param: weight - if true it will assign noise also to the overall weights
     """
     oat = OneAtATime(filename)
-    oat.finalScore()
     oat.iterateLimitsStep(lim, step, weight)
 
 
@@ -31,16 +30,15 @@ def runMonteCarloSimulation(filename : string, weight : bool, nb_experiments : i
     :param: nb_experiments (float) - the number of experiments to be performed at each monte carlo simulation
     :param: plot (bool) - if set true the graph will be shown
     """
-    p = MonteCarlo()
-    p.readData(filename)
+    p = MonteCarlo(filename)
     p.iterateDeviations(nb_experiments, plot, weight)
 
 
 if __name__ == "__main__":
-    currentDirectory = str(os.getcwd()) + "\\tradeOffVerification.txt"
+    currentDirectory = str(os.getcwd()) + "\\tradeOff.txt"
     step = 0.1
-    runOATSimulation(currentDirectory, 2 + step, step, weight=True)
-    #runMonteCarloSimulation(currentDirectory, weight=False, nb_experiments=2000)
+    #runOATSimulation(currentDirectory, 2 + step, step, weight=False)
+    runMonteCarloSimulation(currentDirectory, weight=False, nb_experiments=2000)
     print("done")
     
     

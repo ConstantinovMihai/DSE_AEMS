@@ -5,11 +5,7 @@ Which stores the reading data, score calculation and winner determination method
 
 import numpy as np
 import re
-import scipy.stats as ss
 import matplotlib.pyplot as plt
-from copy import deepcopy
-import os
-import pandas as pd
 
 
 class Weights:
@@ -66,12 +62,15 @@ class Weights:
         :param:  print (bool) - if set true it prints the index of the winner
         """
         self.partialScores()
+        
+        # print(f"scores are {np.average(self.partial_scores, axis=0, weights=self.overall_weights)}")
         self.winner = np.argmax(np.average(self.partial_scores, axis=0, weights=self.overall_weights))
-
+      
         if print_it:
-            print_it(self.winner)
+            print(f'winner is {self.winner} ')
 
         return self.winner
+
 
     def generateVisualisation(self, x, y):
         """
