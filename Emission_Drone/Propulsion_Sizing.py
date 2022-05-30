@@ -53,8 +53,8 @@ def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0,hei
         name = row[0]
         T = thrustPropeller(labda,dzeta,row[4],K0,eta,row[2],alpha0,height,Temp,row[3],row[1],Cp)
         if T > required_thrust:
-            result_mat.append([name, yes])
+            result_mat.append([name, "yes"])
         else:
-            result_mat.append([name, no])
+            result_mat.append([name, "no"])
 
     return result_mat # return matrix with [[prop name, yes/no],[prop name, yes/no],[prop name, yes/no]]
