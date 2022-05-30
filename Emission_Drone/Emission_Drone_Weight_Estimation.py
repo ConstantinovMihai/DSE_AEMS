@@ -1,5 +1,5 @@
 """
-Initial Weight Estimation for the emission and air pollution weight estimation
+Initial sizing for the emission and air pollution weight estimation
 """
 
 
@@ -15,10 +15,10 @@ class Drone:
         payload_mass = Drone.get_payload_mass()
         weights_dict = {"structure": 800, "motors": 500, "propellers": 60, "flight_controllers": 49,\
                         "ESC's": 120, "Arduino": 25, "battery": 800, "wiring": 100, "payload": payload_mass}
-        return sum(weights_dict.values())
+        return weights_dict.values()
 
     def __init__(self):
-        self.total_mass = Drone.get_initial_mass_est()
+        self.mass_dict = Drone.get_initial_mass_est()
 
     def propellers(self):
         pass
