@@ -1,4 +1,4 @@
-import Performance_Analysis.py as eq
+import Performance_Analysis as eq
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -42,19 +42,24 @@ def motor_U_I(M, N, KV0, Um0, Im0, Rm):
     print(U, I)
     return U, I
 
-def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0,height,Temp, Cp,**kwargs):
+def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0, Cp,**kwargs):
     """
     Calculates whether propeller options can provide enough thrust for T/W = 2
-    propeller_matrix should have a row for each option: [prop_name, diameter (m), pitch (m), max rpm, number of blades]
+    propeller_matrix should have a row for each option: ["prop_name", diameter (m), pitch (m), max rpm]
     """
     required_thrust = total_mass * 9.81 / 2
     result_mat = []
     for row in propeller_matrix:
         name = row[0]
-        T = thrustPropeller(labda,dzeta,row[4],K0,eta,row[2],alpha0,height,Temp,row[3],row[1],Cp)
+        T = thrustPropeller(labda,dzeta,2,K0,eta,row[2],alpha0,height,Temp,row[3],row[1],Cp)
         if T > required_thrust:
             result_mat.append([name, "yes"])
         else:
             result_mat.append([name, "no"])
 
     return result_mat # return matrix with [[prop name, yes/no],[prop name, yes/no],[prop name, yes/no]]
+
+test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
+            ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
+
+print(check_propellers(test_mat, 2.8, labda,dzeta,K0,eta,alpha0, Cp,**kwargs))
