@@ -10,6 +10,11 @@ def get_payload_mass():
     mass_all_sensors = sum(sensors_dict.values())
     return mass_all_sensors + mass_support
 
+def get_initial_mass_est():
+    payload_mass = get_payload_mass()
+    weights_dict = {"structure":800, "motors":500, "propellers":60, "flight_controllers":49, \
+            "ESC's":120, "Arduino":25, "battery":800, "wiring":100, "payload":payload_mass}
+    return sum(weights_dict.values())
 
 class Drone:
     def __init__(self, total_mass=0, payload=get_payload_mass()):
@@ -18,3 +23,4 @@ class Drone:
 
     def MassIteration(self):
         pass
+
