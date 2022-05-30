@@ -44,7 +44,8 @@ def motor_U_I(M, N, KV0, Um0, Im0, Rm):
 
 def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0,height,Temp, Cp,**kwargs):
     """
-    prop_matrix should have a row for each option: [prop_name, diameter (m), pitch (m), max rpm, number of blades]
+    Calculates whether propeller options can provide enough thrust for T/W = 2
+    propeller_matrix should have a row for each option: [prop_name, diameter (m), pitch (m), max rpm, number of blades]
     """
     required_thrust = total_mass * 9.81 / 2
     result_mat = []
