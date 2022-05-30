@@ -41,3 +41,19 @@ def motor_U_I(M, N, KV0, Um0, Im0, Rm):
 
     print(U, I)
     return U, I
+
+def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0,height,Temp, Cp,**kwargs):
+    """
+    prop_matrix should have a row for each option: [prop_name, diameter (m), pitch (m), max rpm, number of blades]
+    """
+    required_thrust = total_mass * 9.81 / 2
+    result_mat = []
+    for row in propeller_matrix:
+        name = row[0]
+        T = thrustPropeller(labda,dzeta,row[4],K0,eta,row[2],alpha0,height,Temp,row[3],row[1],Cp)
+        if T > required_thrust:
+            result_mat.append([name, yes])
+        else:
+            result_mat.append([name, no])
+
+    return result_mat # return matrix with [[prop name, yes/no],[prop name, yes/no],[prop name, yes/no]]
