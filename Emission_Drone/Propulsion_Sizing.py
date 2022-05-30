@@ -34,3 +34,10 @@ def momentPropeller(height, Temp, Cfd,N, Cp, K0, e,eta,Hp,Dp,alpha0, labda, dzet
     C_d = eq.dragCoefficient(Cfd, A, K0, e,eta,Hp,Dp,alpha0)
     moment = eq.momentCoefficient(C_d, A, labda, dzeta, Bp) * eq.rho(height, Temp) *  (N/60)**2 * Dp**5
     return moment
+
+def motor_U_I(M, N, KV0, Um0, Im0, Rm):
+    U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
+    I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
+
+    print(U, I)
+    return U, I
