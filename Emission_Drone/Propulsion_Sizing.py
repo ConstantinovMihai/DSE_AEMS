@@ -24,16 +24,37 @@ K0 = 6.11 #Cl-alpha [rad^-1]
 totalweight=2.8*9.81
 
 def propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,N,Dp,**kwargs):
+    """
+    :param: labda - [-]
+    :param: dzeta - [-]
+    :param: N - [rpm]
+    :param: K0 - [-]
+    :param: eta - [-]
+    :param: Hp - [m]
+    :param: Dp - [m]
+    :param: alpha0 - [rad]
+    """
     A = 5
     thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
     return thrust
 
 def propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
+    """
+    :param: labda - [-]
+    :param: dzeta - [-]
+    :param: N - [rpm]
+    :param: K0 - [-]
+    :param: eta - [-]
+    :param: Hp - [m]
+    :param: Dp - [m]
+    :param: alpha0 - [rad]
+    :param: Cfd - [-]
+    """
     A = 5
     C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
     moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
     return moment
-
+print(propellerThrust(labda,dzeta,K0,eta,0.11684,alpha0,6000,0.2794), propellerTorque(Cfd, K0, e,eta,0.11684,0.2794,alpha0, labda, dzeta, 6000))
 def motor_U_I(M, N, KV0, Um0, Im0, Rm):
     U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
     I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
@@ -42,7 +63,7 @@ def motor_U_I(M, N, KV0, Um0, Im0, Rm):
     return U, I
 
 
-def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0, Cp,**kwargs):
+def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0, **kwargs):
     """
     Calculates whether propeller options can provide enough thrust for T/W = 2
     propeller_matrix should have a row for each option: ["prop_name", diameter (m), pitch (m), max rpm]
@@ -70,7 +91,7 @@ def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
 test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
             ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
 
-testmat=np.array([["APC 11x4.6SF", 0.2794, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000]])
+testmat=np.array([["APC 11x4.6SF", 0.2794, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000],["DJI Mavic 3", 0.239,0.135,13000]])
 
 def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs):
     Dp=propellerMatrix[:,1]
@@ -79,17 +100,25 @@ def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs
     Hp=Hp.astype(np.float)
     names=propellerMatrix[:,0]
     for i in range(len(Dp)):
-        N=np.arange(10,12000,10)
-        thrust=propellerThrust(labda,dzeta,K0,eta,Hp[i],alpha0,N,Dp[i])
-        efficiency=propellerThrust(labda,dzeta,K0,eta,Hp[i],alpha0,N,Dp[i])/( propellerTorque(Cfd, K0, e,eta,Hp[i],Dp[i],alpha0, labda, dzeta, N) * (N * 0.1047198 ) )
-        plt.plot(efficiency,thrust, label=names[i])
-    plt.xlim(5,16)
-    plt.ylim(0,0.03)
-    plt.show()
+        N=np.arange(10,12010,10)
+        thrust = propellerThrust(labda,dzeta,K0,eta,Hp[i],alpha0,N,Dp[i])
 
+        torque = propellerTorque(Cfd, K0, e,eta,Hp[i],Dp[i],alpha0, labda, dzeta, N)
+
+        # efficiency=(thrust)/( torque * N * (2*np.pi/60)  )
+        efficiency = [[thrust[i] for i in range(len(N))], [thrust[i] / (torque[i] * N[i] * (2*np.pi/60)) for i in range(len(N))]]
+
+        plt.plot(efficiency[0],efficiency[1], label=names[i])
+
+    plt.xlim(6, 16)
+    plt.ylim(0, 0.1)
+    plt.xlabel("Thrust in N")
+    plt.ylabel("Propeller Efficiency in N/W")
+    plt.legend()
+    plt.show()
     return
+
 propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
-print(check_propellers(test_mat, 2.8, labda,dzeta,K0,eta,alpha0, Cp,**kwargs))
 
 def motor_efficiency(M, N, KV0, Um0, Im0, Rm):
     U, I = motor_U_I(M, N, KV0, Um0, Im0, Rm)
