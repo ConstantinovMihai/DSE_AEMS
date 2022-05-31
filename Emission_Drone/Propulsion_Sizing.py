@@ -96,7 +96,7 @@ def motor_efficiency(M, rpm, KV0, Um0, Im0, Rm):
     efficiency = M * rpm / (U*I)
     return efficiency
 
-def compare_motor_efficiencies(motor_matrix, Hp, Dp):
+def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
     """
     motor_matrix should have a row for each motor with: ['name', KV0, Um0, Im0, Rm]
     """
@@ -110,7 +110,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp):
         thrusts = []
         efficiencies = []
         for rpm in rpm_range:
-            thrust = propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp,)
+            thrust = propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
             thrusts.append(thrust)
             torque = propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
             eff = motor_efficiency(torque, rpm, KV0, Um0, Im0, Rm)
