@@ -13,40 +13,65 @@ Propeller Modeling Parameters
 """
 
 "C O N S T A N T S"
-eta = 0.75 #Correction factor for downwash
+eta = 0.85 #Correction factor for downwash
 labda = 0.75 #correction coefficient lift
-dzeta = 0.65 #correction coefficient weight
+dzeta = 0.55 #correction coefficient weight
 e = 0.83 #oswald efficiency factor
 Cfd = 0.015 #zero-lift drag coefficient
 alpha0 = 0 #Zero-lift angle of attack
 K0 = 6.11 #Cl-alpha [rad^-1]
 
-totalweight=2.7*9.81
+totalweight=2.8*9.81
 
-def thrustPropeller(labda,dzeta,Bp,K0,eta,Hp,alpha0,height,Temp,N,Dp,**kwargs):
-    A = 6.5
-    thrust = eq.thrustCoefficient(labda,dzeta,Bp,K0,eta,Hp,Dp,alpha0,A) * eq.rho(height, Temp) * (N/60)**2 * Dp**4
+def propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,N,Dp,**kwargs):
+    A = 5
+    thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
     return thrust
 
-def momentPropeller(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, Bp):
-    moments={}
-    speed = {}
-    for i in range(len(Hp)):
-        A = 5
-        C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp[i], Dp[i], alpha0)
-        N=np.arange(0,eq.speed(totalweight,1.225,Dp[i], eq.thrustCoefficient(labda,dzeta,Bp[i],K0,eta,Hp[i],Dp[i],alpha0,A), Bp[i]),10)
-        moment = eq.momentCoefficient(C_d, A, labda, dzeta, Bp[i]) * 1.225 * (N/60)**2 * Dp[i]**5
-        print(Hp[i]/0.0254,Dp[i]/0.0254,Bp[i]/0.0254)
-        moments[f"Propeller {Dp[i]/0.0254}x{Hp[i]/0.0254}"]=moment
-        speed[ f"Propeller {Dp[ i ] / 0.0254}x{Hp[ i ] / 0.0254}" ] = N
+def propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
+    A = 5
+    C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
+    moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
+    return moment
 
-    plt.plot(list(speed.values()), list(moments.values()))
-    plt.legend()  # To draw legend
+def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0):
+    """
+    Calculates whether propeller options can provide enough thrust for T/W = 2
+    propeller_matrix should have a row for each option: ["prop_name", diameter (m), pitch (m), max rpm]
+    """
+    required_thrust = total_mass * 9.81 / 2
+    result_mat = []
+    for row in propeller_matrix:
+        name = row[0]
+        T = propellerThrust(labda,dzeta,2,K0,eta,row[2],alpha0,row[3],row[1])
+        if T > required_thrust:
+            result_mat.append([name, "yes"])
+        else:
+            result_mat.append([name, "no"])
+
+    return result_mat # return matrix with [[prop name, yes/no],[prop name, yes/no],[prop name, yes/no]]
+
+# test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
+#             ["APC 11x12E", 0.2794, 0.3048, 13636.36364], ["Mezjlik 14x4.5", 0.3356,0.1143, 12900],["T-Motor SW 11x4.2",0.2794,0.10668,11000],\
+#             ["T-Motor SW 15x5.6",0.381,0.14224,],["T-Motor CF 14x4.8",0.3556,0.12192,],["APC 10x4.6SF", 0.254, 0.11684, 6500],["APC 11x12WE", 0.254, 0.3048, 15000]]
+
+
+testmat=np.array([["APC 11x4.6SF", 0.2794, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000]])
+
+def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs):
+    Dp=propellerMatrix[:,1]
+    Dp=Dp.astype(np.float)
+    Hp=propellerMatrix[:,2]
+    Hp=Hp.astype(np.float)
+    names=propellerMatrix[:,0]
+    for i in range(len(Dp)):
+        N=np.arange(10,12000,10)
+        thrust=propellerThrust(labda,dzeta,K0,eta,Hp[i],alpha0,N,Dp[i])
+        efficiency=propellerThrust(labda,dzeta,K0,eta,Hp[i],alpha0,N,Dp[i])/( propellerTorque(Cfd, K0, e,eta,Hp[i],Dp[i],alpha0, labda, dzeta, N) * (N * 0.1047198 ) )
+        plt.plot(efficiency,thrust, label=names[i])
+    plt.xlim(5,16)
+    plt.ylim(0,0.03)
     plt.show()
+
     return
-
-Dp = np.array([14.0, 15.0, 16.0, 16.0, 17.0, 18.0, 20.0])*0.0254
-Hp = np.array([4.8, 5, 5.4, 6.1, 5.8, 6, 6.2])*0.0254
-Bp = np.array([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2])
-
-momentPropeller(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, Bp)
+propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
