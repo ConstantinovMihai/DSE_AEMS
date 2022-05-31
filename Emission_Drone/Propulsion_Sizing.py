@@ -70,7 +70,7 @@ def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
 test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
             ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
 
-testmat=np.array([["APC 11x4.6SF", 0.2794, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000]])
+testmat=np.array([["APC 11x4.6SF", 0.4064, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000]])
 
 def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs):
     Dp=propellerMatrix[:,1]
@@ -91,8 +91,30 @@ def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs
 propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
 print(check_propellers(test_mat, 2.8, labda,dzeta,K0,eta,alpha0, Cp,**kwargs))
 
-def motor_efficiency(M, N, KV0, Um0, Im0, Rm):
-    U, I = motor_U_I(M, N, KV0, Um0, Im0, Rm)
-    rpm = N * 9.5493
+def motor_efficiency(M, rpm, KV0, Um0, Im0, Rm):
+    U, I = motor_U_I(M, rpm, KV0, Um0, Im0, Rm)
     efficiency = M * rpm / (U*I)
     return efficiency
+
+def compare_motor_efficiencies(motor_matrix, Hp, Dp):
+    """
+    motor_matrix should have a row for each motor with: ['name', KV0, Um0, Im0, Rm]
+    """
+    rpm_range = np.arange(0,2000,100)
+    for motor in motor_matrix:
+        name = motor[0]
+        KV0 = motor[1]
+        Um0 = motor[2]
+        Im0 = motor[3]
+        Rm = motor[4]
+        thrusts = []
+        efficiencies = []
+        for rpm in rpm_range:
+            thrust = propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp,)
+            thrusts.append(thrust)
+            torque = propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
+            eff = motor_efficiency(torque, rpm, KV0, Um0, Im0, Rm)
+            efficiencies.append(eff)
+        plt.plot(thrusts, efficiencies, label=name)
+    plt.legend()
+    plt.show()
