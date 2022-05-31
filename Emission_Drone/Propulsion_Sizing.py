@@ -63,3 +63,9 @@ test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302,
             ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
 
 print(check_propellers(test_mat, 2.8, labda,dzeta,K0,eta,alpha0, Cp,**kwargs))
+
+def motor_efficiency(M, N, KV0, Um0, Im0, Rm):
+    U, I = motor_U_I(M, N, KV0, Um0, Im0, Rm)
+    rpm = N * 9.5493
+    efficiency = M * rpm / (U*I)
+    return efficiency
