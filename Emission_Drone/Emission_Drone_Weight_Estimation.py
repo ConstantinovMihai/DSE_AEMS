@@ -14,7 +14,8 @@ class Drone:
     def get_initial_mass_est():
         payload_mass = Drone.get_payload_mass()
         weights_dict = {"structure": 800, "motors": 500, "propellers": 60, "flight_controllers": 49,\
-                        "ESC's": 120, "Arduino": 25, "battery": 900, "wiring": 100, "payload": payload_mass}
+                        "ESC's": 120, "Arduino": 25, "battery": 900, "wiring": 100, "Obstacle avoidance": 200,\
+                       "payload": payload_mass}
         return weights_dict
 
     def __init__(self):

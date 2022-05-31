@@ -130,7 +130,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     """
     motor_matrix should have a row for each motor with: ['name', KV0, Um0, Im0, Rm]
     """
-    rpm_range = np.arange(0,2000,100)
+    rpm_range = np.arange(0,6000,400)
     for motor in motor_matrix:
         name = motor[0]
         KV0 = motor[1]
@@ -148,3 +148,5 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
         plt.scatter(thrusts, efficiencies, label=name)
     plt.legend()
     plt.show()
+
+test_motor_matrix  = [['multistar 2306 2150kv', 2150, ]]
