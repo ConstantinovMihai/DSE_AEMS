@@ -115,6 +115,6 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp):
             torque = propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
             eff = motor_efficiency(torque, rpm, KV0, Um0, Im0, Rm)
             efficiencies.append(eff)
-        plt.plot(thrusts, efficiencies, label=name)
+        plt.scatter(thrusts, efficiencies, label=name)
     plt.legend()
     plt.show()
