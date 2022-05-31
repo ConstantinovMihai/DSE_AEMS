@@ -54,7 +54,7 @@ def propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
     C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
     moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
     return moment
-print(propellerThrust(labda,dzeta,K0,eta,0.11684,alpha0,6000,0.2794), propellerTorque(Cfd, K0, e,eta,0.11684,0.2794,alpha0, labda, dzeta, 6000))
+
 def motor_U_I(M, N, KV0, Um0, Im0, Rm):
     U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
     I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
@@ -116,9 +116,10 @@ def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs
     plt.ylabel("Propeller Efficiency in N/W")
     plt.legend()
     plt.show()
-    return
 
+    return
 propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
+print(check_propellers(test_mat, 2.8, labda,dzeta,K0,eta,alpha0, Cp,**kwargs))
 
 def motor_efficiency(M, N, KV0, Um0, Im0, Rm):
     U, I = motor_U_I(M, N, KV0, Um0, Im0, Rm)
