@@ -144,8 +144,8 @@ def motor_U_I(M, N, KT, Im0, Rm):
 #             ["T-Motor SW 15x5.6",0.381,0.14224,],["T-Motor CF 14x4.8",0.3556,0.12192,],["APC 10x4.6SF", 0.254, 0.11684, 6500],["APC 11x12WE", 0.254, 0.3048, 15000]]
 
 
-def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
-    return ((battery_cap*battery_w)/(frame_w+battery_w))*prop_eff*((frame_w+battery_w)/no_propellers)
+# def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
+#     return ((battery_cap*battery_w)/(frame_w+battery_w))*prop_eff*((frame_w+battery_w)/no_propellers)
 
 test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
             ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
@@ -226,7 +226,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     """
     motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm]
     """
-    rpm_range = np.arange(0,6000,400)
+    rpm_range = np.arange(0,10000,400) # Input max rpm here.
     for motor in motor_matrix:
         name = motor[0]
         KT = motor[1]
@@ -248,4 +248,20 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     plt.show()
 
 # test_motor_mat = [['EC frameless DT 50 S', 0.0666, 0.162, 0.583],['ECX FLAT 32 L', 0.0215, 0.180, 0.445]]
-# compare_motor_efficiencies(test_motor_mat, 0.1, 0.25, labda, dzeta, K0, eta, alpha0, Cfd, e)
+# compare_motor_efficiencies(test_motor_mat, 0.11684, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
+
+
+def Battery_endurance(Cb, Cmin, Ub, Im, Um, Re, Bmass):
+    """
+    Calculates endurance for battery in minutes
+    Battery parameters: Battery capacity Cb [Ah], battery minimum capacity Cmin (set at 0.2Cb),
+    battery voltage Ub [V]
+    Set parameters (set for hovering thrust): motor current Im [A], motor voltage Um [V], ESC resistance Re [ohm]
+    """
+    sigma = Um + Im * Re / Ub
+    Ie = sigma * Im
+    Iother = 1
+    Ib = 4 * Ie + Iother
+    hovering_endurance = (Cb - Cmin) * (60/1000) / Ib
+    print('hovering_endurance: ',hovering_endurance,' minutes - mass:', Bmass, 'g')
+    return hovering_endurance
