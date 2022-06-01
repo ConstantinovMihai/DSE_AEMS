@@ -31,7 +31,8 @@ K0 = 6.11 #Cl-alpha [rad^-1]
 
 totalweight=3.028*9.81
 
-def propellerThrust(propellerMatrix,labda,dzeta,K0,eta,alpha0,**kwargs):
+
+def propellerThrust(propellerMatrix, labda, dzeta, K0, eta, alpha0, total_weight, **kwargs):
     """
     :param: labda - [-]
     :param: dzeta - [-]
@@ -41,28 +42,35 @@ def propellerThrust(propellerMatrix,labda,dzeta,K0,eta,alpha0,**kwargs):
     :param: Hp - [m]
     :param: Dp - [m]
     :param: alpha0 - [rad]
+    :param: total_weight - [kg]
     """
-    A = 5
-    for row in propellerMatrix:
-        names=row[0]
-        Dp=row[1]
-        Hp=row[2]
-        maxrpm=row[3]
-        N=np.arange(10,maxrpm,10)
 
-        thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
-        plt.plot(N,thrust,label=names)
+    A = 5  # set the aspect ratio
+    for row in propellerMatrix:  # compute the performance of each prop
+        names = row[0]
+        Dp = row[1]
+        Hp = row[2]
+        maxrpm = row[3]
+        N = np.arange(10, maxrpm, 10)
+        thrust = eq.thrustCoefficient(labda, dzeta, 2, K0, eta, Hp, Dp, alpha0, A) * 1.225 * (N/60)**2 * Dp**4
+
+        # prune the thrust values based on maximum (climb) and then plot
+        if thrust[-1] > (total_weight*9.81) / 2:
+            plt.plot(N, thrust, label=names)
+
     plt.xlabel("RPM")
     plt.ylabel("Thrust in N")
-    plt.ylim(0,17)
-    plt.axhline(7.57,linestyle="dotted",label="Thover")
-    plt.axhline(7.57*2,linestyle="dashed", label="Tmax")
+    plt.ylim(0, 17)
+    plt.axhline((total_weight*9.81)/4, linestyle="dotted", label="Thover")
+    plt.axhline((total_weight*9.81)/2, linestyle="dashed", label="Tmax")
     plt.legend()
     plt.show()
 
     return
 
-propellerThrust(propellerMatrix[1:28,1:5],labda,dzeta,K0,eta,alpha0)
+
+propellerThrust(propellerMatrix[1:28, 1:5], labda, dzeta, K0, eta, alpha0, 3.028)
+
 
 def propellerTorque(propellerMatrix,Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
     """
