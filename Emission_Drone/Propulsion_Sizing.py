@@ -211,4 +211,4 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     plt.legend()
     plt.show()
 
-test_motor_matrix  = [['multistar 2306 2150kv', 2150, ]]
+
