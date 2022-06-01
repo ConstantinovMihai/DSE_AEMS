@@ -107,6 +107,11 @@ def propellerTorque(propellerMatrix,Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N
 #     return U, I
 
 def motor_U_I(M, N, KT, Im0, Rm):
+    """
+    Calculates motor voltage U [V] and current I [A].
+    Parameters: motor torque M = propeller torque [Nm], motor speed N = propeller speed [rpm]
+    Torque constant KT = 9.55((Um0 − Im0*Rm) / (KV0*Um0)), Nominal no-load current Im0 [A], resistance Rm [Ohm]
+    """
     U = (M / KT + Im0) * Rm + KT * N / 9.55
     I = M / KT + Im0
     return U, I
