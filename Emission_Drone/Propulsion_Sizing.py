@@ -100,7 +100,7 @@ def propellerTorque(propellerMatrix,Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N
     plt.show()
     return
 
-# def motor_U_I(M, N, KT, Im0, Rm):
+# def motor_U_I(M, KV0, Um0, Im0, N, Rm):
 #     U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
 #     I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
 #     print(U, I)
