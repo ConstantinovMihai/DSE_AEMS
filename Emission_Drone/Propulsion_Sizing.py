@@ -69,7 +69,7 @@ def propellerThrust(propellerMatrix, labda, dzeta, K0, eta, alpha0, total_weight
     return
 
 
-propellerThrust(propellerMatrix[1:28, 1:5], labda, dzeta, K0, eta, alpha0, 3.028)
+#propellerThrust(propellerMatrix[1:28, 1:5], labda, dzeta, K0, eta, alpha0, 3.028)
 
 
 def propellerTorque(propellerMatrix,Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
@@ -175,7 +175,7 @@ def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs
     plt.show()
 
     return
-N = np.arange(10,14000,10)
+#N = np.arange(10,14000,10)
 #plt.plot(N,propellerThrust(labda,dzeta,K0,eta,0.3048,alpha0,N,0.2794))
 #plt.show()
 #plt.plot(N,propellerTorque(Cfd, K0, e,eta,0.3048,0.2794,alpha0, labda, dzeta, N))
@@ -183,10 +183,42 @@ N = np.arange(10,14000,10)
 
 
 #propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
+def calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,N,Dp,**kwargs):
+    """
+    :param: labda - [-]
+    :param: dzeta - [-]
+    :param: N - [rpm]
+    :param: K0 - [-]
+    :param: eta - [-]
+    :param: Hp - [m]
+    :param: Dp - [m]
+    :param: alpha0 - [rad]
+    """
+    A = 5
+    thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
+    return thrust
 
+def calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
+    """
+    :param: labda - [-]
+    :param: dzeta - [-]
+    :param: N - [rpm]
+    :param: K0 - [-]
+    :param: eta - [-]
+    :param: Hp - [m]
+    :param: Dp - [m]
+    :param: alpha0 - [rad]
+    :param: Cfd - [-]
+    """
+    A = 5
+    C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
+    moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
+    return moment
 
-def motor_efficiency(M, N, KT, Im0, Rm):
-    U, I = motor_U_I(M, N, KT, Im0, Rm)
+def motor_efficiency(M, rpm, KT, Im0, Rm):
+    U, I = motor_U_I(M, rpm, KT, Im0, Rm)
+    N = rpm * 0.10472
+    print('U=',U,'I=', I)
     efficiency = M * N / (U*I)
     return efficiency
 
@@ -203,13 +235,17 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
         thrusts = []
         efficiencies = []
         for rpm in rpm_range:
-            thrust = propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
+            thrust = calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
             thrusts.append(thrust)
-            torque = propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
+            torque = calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
             eff = motor_efficiency(torque, rpm, KT, Im0, Rm)
             efficiencies.append(eff)
+            print('Thrust=', thrust,'torque=', torque)
         plt.scatter(thrusts, efficiencies, label=name)
+    plt.xlabel('Thrust [N]')
+    plt.ylabel('Motor efficicency')
     plt.legend()
     plt.show()
 
-
+# test_motor_mat = [['EC frameless DT 50 S', 0.0666, 0.162, 0.583],['ECX FLAT 32 L', 0.0215, 0.180, 0.445]]
+# compare_motor_efficiencies(test_motor_mat, 0.1, 0.25, labda, dzeta, K0, eta, alpha0, Cfd, e)
