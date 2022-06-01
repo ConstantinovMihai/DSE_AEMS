@@ -100,13 +100,16 @@ def propellerTorque(propellerMatrix,Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N
     plt.show()
     return
 
-def motor_U_I(M, N, KV0, Um0, Im0, Rm):
-    U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
-    I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
+# def motor_U_I(M, N, KT, Im0, Rm):
+#     U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
+#     I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
+#     print(U, I)
+#     return U, I
 
-    print(U, I)
+def motor_U_I(M, N, KT, Im0, Rm):
+    U = (M / KT + Im0) * Rm + KT * N / 9.55
+    I = M / KT + Im0
     return U, I
-
 
 # def check_propellers(propeller_matrix, total_mass, labda,dzeta,K0,eta,alpha0, **kwargs):
 #     """
