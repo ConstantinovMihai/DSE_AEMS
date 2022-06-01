@@ -184,29 +184,28 @@ N = np.arange(10,14000,10)
 #propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
 
 
-def motor_efficiency(M, rpm, KV0, Um0, Im0, Rm):
-    U, I = motor_U_I(M, rpm, KV0, Um0, Im0, Rm)
-    efficiency = M * rpm / (U*I)
+def motor_efficiency(M, N, KT, Im0, Rm):
+    U, I = motor_U_I(M, N, KT, Im0, Rm)
+    efficiency = M * N / (U*I)
     return efficiency
 
 def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
     """
-    motor_matrix should have a row for each motor with: ['name', KV0, Um0, Im0, Rm]
+    motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm]
     """
     rpm_range = np.arange(0,6000,400)
     for motor in motor_matrix:
         name = motor[0]
-        KV0 = motor[1]
-        Um0 = motor[2]
-        Im0 = motor[3]
-        Rm = motor[4]
+        KT = motor[1]
+        Im0 = motor[2]
+        Rm = motor[3]
         thrusts = []
         efficiencies = []
         for rpm in rpm_range:
             thrust = propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
             thrusts.append(thrust)
             torque = propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
-            eff = motor_efficiency(torque, rpm, KV0, Um0, Im0, Rm)
+            eff = motor_efficiency(torque, rpm, KT, Im0, Rm)
             efficiencies.append(eff)
         plt.scatter(thrusts, efficiencies, label=name)
     plt.legend()
