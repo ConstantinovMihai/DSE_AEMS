@@ -154,11 +154,21 @@ propellerComparison(propellerMatrix[1:28, 1:5], labda, dzeta, K0, eta, alpha0,3.
 
 
 
-def motor_U_I(M, N, KV0, Um0, Im0, Rm):
-    U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
-    I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
+# def motor_U_I(M, KV0, Um0, Im0, N, Rm):
+#     U = eq.motorVoltage(M, KV0, Um0, Im0, N, Rm)
+#     I = eq.motorCurrent( M, KV0, Um0, Im0, Rm)
+#     print(U, I)
+#     return U, I
 
-    print(U, I)
+def motor_U_I(M, N, KT, Im0, Rm):
+    """
+    Calculates motor voltage U [V] and current I [A].
+    Parameters: motor torque M = propeller torque [Nm], motor speed N = propeller speed [rpm]
+    Torque constant KT [Nm/A] = 9.55((Um0 − Im0*Rm) / (KV0*Um0)), Nominal no-load current Im0 [A],
+    resistance Rm [Ohm]
+    """
+    U = (M / KT + Im0) * Rm + KT * N / 9.55
+    I = M / KT + Im0
     return U, I
 
 
@@ -189,8 +199,8 @@ def motor_U_I(M, N, KV0, Um0, Im0, Rm):
 #             ["T-Motor SW 15x5.6",0.381,0.14224,],["T-Motor CF 14x4.8",0.3556,0.12192,],["APC 10x4.6SF", 0.254, 0.11684, 6500],["APC 11x12WE", 0.254, 0.3048, 15000]]
 
 
-def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
-    return ((battery_cap*battery_w)/(frame_w+battery_w))*prop_eff*((frame_w+battery_w)/no_propellers)
+# def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
+#     return ((battery_cap*battery_w)/(frame_w+battery_w))*prop_eff*((frame_w+battery_w)/no_propellers)
 
 test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
             ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
@@ -220,7 +230,7 @@ def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs
     plt.show()
 
     return
-N = np.arange(10,14000,10)
+#N = np.arange(10,14000,10)
 #plt.plot(N,propellerThrust(labda,dzeta,K0,eta,0.3048,alpha0,N,0.2794))
 #plt.show()
 #plt.plot(N,propellerTorque(Cfd, K0, e,eta,0.3048,0.2794,alpha0, labda, dzeta, N))
@@ -228,34 +238,85 @@ N = np.arange(10,14000,10)
 
 
 #propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
+def calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,N,Dp,**kwargs):
+    """
+    :param: labda - [-]
+    :param: dzeta - [-]
+    :param: N - [rpm]
+    :param: K0 - [-]
+    :param: eta - [-]
+    :param: Hp - [m]
+    :param: Dp - [m]
+    :param: alpha0 - [rad]
+    """
+    A = 5
+    thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
+    return thrust
 
+def calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
+    """
+    :param: labda - [-]
+    :param: dzeta - [-]
+    :param: N - [rpm]
+    :param: K0 - [-]
+    :param: eta - [-]
+    :param: Hp - [m]
+    :param: Dp - [m]
+    :param: alpha0 - [rad]
+    :param: Cfd - [-]
+    """
+    A = 5
+    C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
+    moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
+    return moment
 
-def motor_efficiency(M, rpm, KV0, Um0, Im0, Rm):
-    U, I = motor_U_I(M, rpm, KV0, Um0, Im0, Rm)
-    efficiency = M * rpm / (U*I)
+def motor_efficiency(M, rpm, KT, Im0, Rm):
+    U, I = motor_U_I(M, rpm, KT, Im0, Rm)
+    N = rpm * 0.10472
+    print('U=',U,'I=', I)
+    efficiency = M * N / (U*I)
     return efficiency
 
 def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
     """
-    motor_matrix should have a row for each motor with: ['name', KV0, Um0, Im0, Rm]
+    motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm]
     """
-    rpm_range = np.arange(0,6000,400)
+    rpm_range = np.arange(0,10000,400) # Input max rpm here.
     for motor in motor_matrix:
         name = motor[0]
-        KV0 = motor[1]
-        Um0 = motor[2]
-        Im0 = motor[3]
-        Rm = motor[4]
+        KT = motor[1]
+        Im0 = motor[2]
+        Rm = motor[3]
         thrusts = []
         efficiencies = []
         for rpm in rpm_range:
-            thrust = propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
+            thrust = calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
             thrusts.append(thrust)
-            torque = propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
-            eff = motor_efficiency(torque, rpm, KV0, Um0, Im0, Rm)
+            torque = calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
+            eff = motor_efficiency(torque, rpm, KT, Im0, Rm)
             efficiencies.append(eff)
+            print('Thrust=', thrust,'torque=', torque)
         plt.scatter(thrusts, efficiencies, label=name)
+    plt.xlabel('Thrust [N]')
+    plt.ylabel('Motor efficicency')
     plt.legend()
     plt.show()
 
-test_motor_matrix  = [['multistar 2306 2150kv', 2150, ]]
+# test_motor_mat = [['EC frameless DT 50 S', 0.0666, 0.162, 0.583],['ECX FLAT 32 L', 0.0215, 0.180, 0.445]]
+# compare_motor_efficiencies(test_motor_mat, 0.11684, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
+
+
+def Battery_endurance(Cb, Cmin, Ub, Im, Um, Re, Bmass):
+    """
+    Calculates endurance for battery in minutes
+    Battery parameters: Battery capacity Cb [Ah], battery minimum capacity Cmin (set at 0.2Cb),
+    battery voltage Ub [V]
+    Set parameters (set for hovering thrust): motor current Im [A], motor voltage Um [V], ESC resistance Re [ohm]
+    """
+    sigma = Um + Im * Re / Ub
+    Ie = sigma * Im
+    Iother = 1
+    Ib = 4 * Ie + Iother
+    hovering_endurance = (Cb - Cmin) * (60/1000) / Ib
+    print('hovering_endurance: ',hovering_endurance,' minutes - mass:', Bmass, 'g')
+    return hovering_endurance
