@@ -145,7 +145,7 @@ def propellerComparison(propellerMatrix, labda, dzeta, K0, eta, alpha0,total_wei
 
     return print(torquevalues)
 
-propellerComparison(propellerMatrix[1:28, 1:5], labda, dzeta, K0, eta, alpha0,3.028)
+# propellerComparison(propellerMatrix[1:28, 1:5], labda, dzeta, K0, eta, alpha0,3.028)
 #propellerComparison(eleveninchprops, labda, dzeta, K0, eta, alpha0,3.028)
 
 
@@ -202,10 +202,10 @@ def motor_U_I(M, N, KT, Im0, Rm):
 # def flight_time(battery_w,  battery_cap, frame_w, no_propellers, prop_eff):
 #     return ((battery_cap*battery_w)/(frame_w+battery_w))*prop_eff*((frame_w+battery_w)/no_propellers)
 
-test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
-            ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
-
-testmat=np.array([["APC 6×4.1SF", 0.1778, 0.10414, 20000],["APC 11x4.6SF", 0.2794, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000],["DJI Mavic 3", 0.239,0.135,13000]])
+# test_mat = [["APC 6×4.1SF", 0.1524, 0.10414, 20000],["T-Motor SW 13x5", 0.3302, 0.127, 9600],\
+#             ["APC 11x12E", 0.2794, 0.3048, 13636.36364]]
+#
+# testmat=np.array([["APC 6×4.1SF", 0.1778, 0.10414, 20000],["APC 11x4.6SF", 0.2794, 0.11684, 15000],["APC 11x12E", 0.2794, 0.3048, 13636.36364],["T-Motor SW 11x4.2",0.2794,0.10668,11000],["DJI Mavic 3", 0.239,0.135,13000]])
 
 def propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,propellerMatrix,**kwargs):
     Dp=propellerMatrix[:,1]
@@ -273,20 +273,25 @@ def calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
 def motor_efficiency(M, rpm, KT, Im0, Rm):
     U, I = motor_U_I(M, rpm, KT, Im0, Rm)
     N = rpm * 0.10472
-    print('U=',U,'I=', I)
     efficiency = M * N / (U*I)
     return efficiency
 
 def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
     """
-    motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm]
+    motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm, mass]
     """
-    rpm_range = np.arange(0,10000,400) # Input max rpm here.
+    rpm_range = np.arange(2250,10000,400) # Input max rpm here.
+    masses = []
+    efficiencies74N = []
+    names = []
     for motor in motor_matrix:
         name = motor[0]
+        names.append(name)
         KT = motor[1]
         Im0 = motor[2]
         Rm = motor[3]
+        masses.append(motor[4])
+
         thrusts = []
         efficiencies = []
         for rpm in rpm_range:
@@ -295,11 +300,22 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
             torque = calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
             eff = motor_efficiency(torque, rpm, KT, Im0, Rm)
             efficiencies.append(eff)
-            print('Thrust=', thrust,'torque=', torque)
+            if rpm == 6250:
+                print(name)
+                efficiencies74N.append(eff)
         plt.scatter(thrusts, efficiencies, label=name)
     plt.xlabel('Thrust [N]')
-    plt.ylabel('Motor efficicency')
+    plt.ylabel('Motor efficiency')
     plt.legend()
+    plt.show()
+
+    # graph efficiencies at 7.4N vs mass
+    print(names, masses, efficiencies74N)
+    plt.scatter(masses, efficiencies74N)
+    plt.xlabel('masses [g]')
+    plt.ylabel('Motor efficiency at 7.4N')
+    for i, label in enumerate(names):
+        plt.annotate(label, (masses[i], efficiencies74N[i]))
     plt.show()
 
 # test_motor_mat = [['EC frameless DT 50 S', 0.0666, 0.162, 0.583],['ECX FLAT 32 L', 0.0215, 0.180, 0.445]]
@@ -320,3 +336,13 @@ def Battery_endurance(Cb, Cmin, Ub, Im, Um, Re, Bmass):
     hovering_endurance = (Cb - Cmin) * (60/1000) / Ib
     print('hovering_endurance: ',hovering_endurance,' minutes - mass:', Bmass, 'g')
     return hovering_endurance
+
+
+def matrix_gen_options(SheetNumber):
+    df = pd.read_excel(r'.\Propulsion_options.xlsx', sheet_name = SheetNumber)
+    a = df.to_numpy()
+    return a
+
+motor_matrix = matrix_gen_options(2)[3:17,1:6]
+compare_motor_efficiencies(motor_matrix, 0.11684, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
+# Choice iteration 1: Maxon 608131
