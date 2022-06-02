@@ -278,12 +278,18 @@ def motor_efficiency(M, rpm, KT, Im0, Rm):
 
 def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
     """
+    Makes 2 graphs to decide on a motor: Thrust vs efficiency and mass vs efficiency at hovering
     motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm, mass]
+    torque constant KT [Nm/A], Nominal no-load current Im0 [A], motor resistance Rm [ohm], motor mass [g]
     """
     rpm_range = np.arange(2250,10000,400) # Input max rpm here.
+
+    # Lists for efficiencies at 7.4N vs mass graph
     masses = []
     efficiencies74N = []
     names = []
+
+    # thrust vs efficiency graphs
     for motor in motor_matrix:
         name = motor[0]
         names.append(name)
@@ -343,6 +349,6 @@ def matrix_gen_options(SheetNumber):
     a = df.to_numpy()
     return a
 
-motor_matrix = matrix_gen_options(2)[3:17,1:6]
+motor_matrix = matrix_gen_options(2)[2:17,1:6]
 compare_motor_efficiencies(motor_matrix, 0.11684, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
 # Choice iteration 1: Maxon 608131
