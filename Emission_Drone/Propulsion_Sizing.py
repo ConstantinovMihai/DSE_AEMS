@@ -312,14 +312,16 @@ Using/testing the fuctions (Uncomment what you want to use):
 # propellerComparison(eleveninchprops, labda, dzeta, K0, eta, alpha0,3.028)
 # motor_matrix = matrix_gen_options(2)[2:17,1:6]
 # compare_motor_efficiencies(motor_matrix, 0.1397, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
-# Im, Um = motor_U_I(0.15044989095978484, 5800, 0.0295, 0.277, 0.447)
-# Battery_endurance(25, Im, Um)
+Im, Um = motor_U_I(0.15044989095978484, 5800, 0.0295, 0.277, 0.447)
+Battery_endurance(25, Im, Um)
 
 """
 Current choices:
 """
-# Choice iteration 1 propeller: 11 inch x 5.5 inch
-# Choice iteration 1 motor: Maxon 608131 (113g)
-# Choice iteration 1 ESC: Maxon 438725 (12g)
+# Choice iteration 1 propeller: 11 inch x 5.5 inch (22.9631112g * 4 = 91.8524448g)
+# Choice iteration 1 motor: Maxon 608131 (113g * 4 = 452g)
+# Choice iteration 1 ESC: Maxon 438725 (12g * 4 = 48g)
+# Choice iteration 1 Battery: 1350g
+# Total mass it 1: 3389.85g
 # torque at hvering: 0.15044989095978484
 # 5800 rpm
