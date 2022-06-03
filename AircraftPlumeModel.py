@@ -39,13 +39,14 @@ def main():
     # initialise variables
     windSpeed = 10
     variables = [1000, 1000, 1000, 1000, 1000, 1000]
-    speed = 10
+    aircraftSpeed = 100
 
     fDomain = []
     for x in X:
+        #aircraftSpeed -= 1
         for y in Y:
             fDomain.append(
-                gaussianPlume(x - sourceLocation[0], y - sourceLocation[1], Z, H, variables, [alpha, beta], speed))
+                gaussianPlume(x - sourceLocation[0], y - sourceLocation[1], Z, H, variables, [alpha, beta], aircraftSpeed, windSpeed))
 
     fDomain = np.array(fDomain)
     fDomain = np.reshape(fDomain, (99, 100))
