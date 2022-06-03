@@ -30,9 +30,9 @@ def main():
         beta.append(np.random.uniform(0,1))
 
     # initialise coordinate system
-    X = np.arange(0.1, 10, 0.1)
+    X = np.arange(0.1, 100, 0.1)
     Y = np.arange(-5, 5, 0.1)
-    Z = 10
+    Z = 5
     H = 5
     sourceLocation = [0, 0]  # only x and y as H gives Z
 
@@ -43,13 +43,13 @@ def main():
 
     fDomain = []
     for x in X:
-        #aircraftSpeed -= 1
+        aircraftSpeed *= 0.95
         for y in Y:
             fDomain.append(
                 gaussianPlume(x - sourceLocation[0], y - sourceLocation[1], Z, H, variables, [alpha, beta], aircraftSpeed, windSpeed))
 
     fDomain = np.array(fDomain)
-    fDomain = np.reshape(fDomain, (99, 100))
+    fDomain = np.reshape(fDomain, (999, 100))
 
     print(fDomain.shape)
     print(fDomain)
