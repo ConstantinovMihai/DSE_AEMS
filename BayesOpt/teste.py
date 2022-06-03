@@ -6,6 +6,7 @@ from numpy.linalg import cholesky, det
 from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
 from gp_util import plot_gp_2D
+from SimplePlumeModel import gaussianPlumeModel
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
     """
@@ -59,11 +60,6 @@ X = np.arange(-5, 5, 0.1).reshape(-1, 1)
 # Mean and covariance of the prior
 mu = np.zeros(X.shape)
 cov = kernel(X, X)
-
-p = mu.ravel()
-
-# Draw three samples from the prior
-samples = np.random.multivariate_normal(mu.ravel(), cov, 3)
 
 noise = 0.4
 
@@ -138,6 +134,10 @@ def nll_fn(X_train, Y_train, noise, naive=True):
     else:
         return nll_stable
 
+
+
+
+
 # Minimize the negative log-likelihood w.r.t. parameters l and sigma_f.
 # We should actually run the minimization several times with different
 # initializations to avoid local minima but this is skipped here for
@@ -163,7 +163,19 @@ gx, gy = np.meshgrid(rx, rx)
 X_2D = np.c_[gx.ravel(), gy.ravel()]
 
 X_2D_train = np.random.uniform(-4, 4, (100, 2))
-Y_2D_train = np.sin(0.5 * np.linalg.norm(X_2D_train, axis=1)) + \
+
+x = X_2D_train[:,0]
+y = X_2D_train[:,1]
+z= X_2D_train[:,1]
+
+H = np.ones(len(x)) * 5
+vel = 5000000 * np.ones(len(x))
+wind = np.zeros(len(x))
+Q = 5000 * np.ones(len(x))
+
+gauss = gaussianPlumeModel(x, y, z, H, vel, wind, Q)
+
+Y_2D_train =gauss + \
              noise_2D * np.random.randn(len(X_2D_train))
 
 plt.figure(figsize=(14,7))
