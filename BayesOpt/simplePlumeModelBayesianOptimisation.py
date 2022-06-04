@@ -21,7 +21,8 @@ def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordi
     sigma_z = const[3] * x / np.power((1 + const[4] * x), const[5])
     C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
             math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
-    return C ** 0.1
+
+    return C
 
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -131,6 +132,21 @@ def simpleFunc(x, y):
     return x + y + x * y ** 2
 
 
+# Upper Confidence Bound
+def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    return mu_s + kappa * np.sqrt(np.diag(cov_s))
+
+
+def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
+    acquisitionFunc = UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
+    sampleLocation = np.argmax(acquisitionFunc)
+    return X_2D[sampleLocation]
+
+
 # Determine Domain Size and Width
 minX = 0.1
 maxX = 100
@@ -139,30 +155,39 @@ maxY = 10
 dX = 0.5
 dY = 0.5
 
-#Generate Mesh
+# Explore/Exploit TradeOff
+kappa = 1.5
+nIter = 10
+noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
+
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
 gx, gy = np.meshgrid(rx, ry)
+
+# Generate Initial Samples
 X_2D = np.c_[gx.ravel(), gy.ravel()]
 
-#Generate Training Data
-noise_2D = 0.1
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(200):
+for i in range(10):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
 
 Y_2D_train = []
 for points in X_2D_train:
-    Y_2D_train.append(gaussianPlume(points[0], points[1]))
+    Y_2D_train.append(gaussianPlume(points[0], points[1]) + noise_2D * np.random.randn())
 Y_2D_train = np.array(Y_2D_train)
 
+# Selection of new sampling locations
+for i in range(nIter):
+    print(i)
+    sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
+    X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
+    Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(points[0], points[1]) + noise_2D * np.random.randn()))
 
-# Plot Results through Gaussian Regression
+# Plotting Results
 plt.figure(figsize=(14, 7))
 
 mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
 plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
            f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
-
 
 res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                bounds=((1e-5, None), (1e-5, None)),
