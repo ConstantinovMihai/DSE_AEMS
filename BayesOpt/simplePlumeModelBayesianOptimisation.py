@@ -12,7 +12,7 @@ def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordi
     # variables = [aType, aPath, aEvent, thrust, temperature, humidity];
     # constants = [alpha, beta]
     # wind = [uX, uY, uZ]
-    z = 5.01
+    z = 5
     H = 5
     speed = 10
     Q = 100
@@ -22,7 +22,7 @@ def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordi
     C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
             math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
 
-    return C
+    return C**0.1
 
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -156,7 +156,7 @@ dX = 0.5
 dY = 0.5
 
 # Explore/Exploit TradeOff
-kappa = 1.5
+kappa = 4
 nIter = 20
 noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
@@ -180,7 +180,7 @@ for i in range(nIter):
     print(i)
     sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
     X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
-    Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(points[0], points[1]) + noise_2D * np.random.randn()))
+    Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1]) + noise_2D * np.random.randn()))
 
 # Plotting Results
 plt.figure(figsize=(14, 7))

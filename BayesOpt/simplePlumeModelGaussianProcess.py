@@ -147,7 +147,7 @@ X_2D = np.c_[gx.ravel(), gy.ravel()]
 #Generate Training Data
 noise_2D = 0.1
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(200):
+for i in range(30):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
 
 Y_2D_train = []
