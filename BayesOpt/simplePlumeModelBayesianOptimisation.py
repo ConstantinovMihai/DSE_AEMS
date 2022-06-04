@@ -157,7 +157,7 @@ dY = 0.5
 
 # Explore/Exploit TradeOff
 kappa = 1.5
-nIter = 10
+nIter = 20
 noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
