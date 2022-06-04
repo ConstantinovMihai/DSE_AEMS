@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+from matplotlib.colors import LogNorm
 
 np.random.seed(2443)
 
@@ -14,6 +15,7 @@ def gaussianPlume(x, y, z, H, variables, constants, aircraftSpeed, wind): #x,y c
     sigma_y = constants[0][0] * x / (1 + constants[0][1] * x) ** constants[0][2]  # gaussian diffusion for y coordinate
     sigma_z = constants[0][3] * x / (1 + constants[0][4] * x) ** constants[0][5]  # gaussian diffusion for z coordinate]
     const = np.array([0.08, 0.0001, 0.5, 0.06, 0.0015, 0.5])
+    const = np.array([0.08, 0.0001, 0.5, 0.01, 0.0015, 0.5])
     sigma_y = const[0] * x / np.power((1 + const[1] * x), const[2])
     sigma_z = const[3] * x / np.power((1 + const[4] * x), const[5])
 
@@ -25,7 +27,7 @@ def gaussianPlume(x, y, z, H, variables, constants, aircraftSpeed, wind): #x,y c
     Q = 100
     C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
                 math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
-    return C
+    return C**0.01
 
 
 
@@ -77,7 +79,7 @@ def gaussianPlumeModel(x : np.array, y : np.array, z : np.array, H : np.array, v
     return C
 
 
-def main():
+def plotPlume():
     # random constant generation
     alpha = []
     for i in range(6):
@@ -87,7 +89,7 @@ def main():
         beta.append(np.random.uniform(0,1))
 
     # initialise coordinate system
-    X = np.arange(20, 200, 0.1)
+    X = np.arange(0.1, 50, 0.1)
     Y = np.arange(-10, 10, 0.1)
     Z = 5
     H = 5
@@ -96,7 +98,7 @@ def main():
     # initialise variables
     windSpeed = 10
     variables = [1000, 1000, 1000, 1000, 1000, 1000]
-    aircraftSpeed = 10
+    aircraftSpeed = 100
 
     fDomain = []
     for x in X:
@@ -106,16 +108,18 @@ def main():
                 gaussianPlume(x - sourceLocation[0], y - sourceLocation[1], Z, H, variables, [alpha, beta], aircraftSpeed, windSpeed))
 
     fDomain = np.array(fDomain)
-    fDomain = np.reshape(fDomain, (1800, 200))
+    fDomain = np.reshape(fDomain, (499, 200))
 
     print(fDomain.shape)
     print(fDomain)
     print(np.argmax(fDomain))
-    plt.imshow(fDomain, interpolation="nearest", origin="upper")
+    plt.imshow(fDomain.T, interpolation="nearest", origin="upper", norm=LogNorm(vmin=0.01, vmax=1))
     #plt.gca().invert_yaxis()
     plt.colorbar()
     plt.show()
 
+def mainBO():
+    pass
 
 if __name__ == "__main__":
-    main()
+    plotPlume()
