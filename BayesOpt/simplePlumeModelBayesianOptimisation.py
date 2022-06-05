@@ -22,7 +22,7 @@ def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordi
     C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
             math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
 
-    return C**0.1
+    return C
 
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -37,7 +37,10 @@ def kernel(X1, X2, l=1.0, sigma_f=1.0):
         (m x n) matrix.
     """
     sqdist = np.sum(X1 ** 2, 1).reshape(-1, 1) + np.sum(X2 ** 2, 1) - 2 * np.dot(X1, X2.T)
-    return sigma_f ** 2 * np.exp(-0.5 / l ** 2 * sqdist)
+    kernelRBF = sigma_f ** 2 * np.exp(-0.5 / l ** 2 * sqdist) #at 200 iter RMSE 0.152
+    dist = np.sqrt(sqdist)
+    kernelMatern = sigma_f ** 2 * (1+ np.sqrt(5)*dist/l + 5*dist**2/(3*l**2))*np.exp(-5*dist/l) #at 200 iter RMSE 0.07784
+    return kernelRBF
 
 
 def plot_gp_2D(gx, gy, mu, X_train, Y_train, title, i):
@@ -133,32 +136,92 @@ def simpleFunc(x, y):
 
 
 # Upper Confidence Bound
-def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
+def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
-    return mu_s + kappa * np.sqrt(np.diag(cov_s))
+    mu_global  = np.mean(mu_s)
+    return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s))
+
+# Distance-based Upper Confidence Bound
+def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    mu_global  = np.mean(mu_s)
+    lastMeasurement = X_2D_train[-1]
+    distance = []
+    for point in X_2D:
+        distance.append((lastMeasurement[0] - point[0])**2 + (lastMeasurement[1] - point[1])**2)
+    distance = np.sqrt(np.array(distance))
+    print("average variance: ",np.mean(np.sqrt(np.diag(cov_s))))
+    return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s)) + gamma*distance
 
 
-def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
-    acquisitionFunc = UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
+def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
+    acquisitionFunc = DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
     sampleLocation = np.argmax(acquisitionFunc)
     return X_2D[sampleLocation]
+
+def parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy):
+    # Plotting Results
+    plt.figure(figsize=(14, 7))
+
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
+    plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
+               f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
+
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
+               f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 2)
+    plt.show()
+
+def RMSE(mu, mu_s):
+    rmse = 0
+    n = len(mu)
+    for i in range(n):
+        rmse += (mu[i]-mu_s[i])**2
+    return math.sqrt(rmse/n)
+
+def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
+    mu = []
+    for X in X_2D:
+        mu.append(func(X[0], X[1]))
+    mu = np.array(mu)
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    print("Root mean square error is: ",RMSE(mu, mu_s))
+    ax1.imshow(mu.reshape(gx.shape).T, interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
+    # plt.gca().invert_yaxis()
+    ax2.imshow(mu_s.reshape(gx.shape).T, interpolation="nearest",vmin=0, vmax=1, origin="upper")
+        # plt.gca().invert_yaxis()
+    plt.show()
+
 
 
 # Determine Domain Size and Width
 minX = 0.1
 maxX = 100
-minY = -10
-maxY = 10
-dX = 0.5
-dY = 0.5
+minY = -20
+maxY = 20
+dX = 1
+dY = 1
 
 # Explore/Exploit TradeOff
-kappa = 4
-nIter = 20
-noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
+kappa = 10000000
+gamma = -0.05
+nIter = 50
+noise_2D = 0.0001  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
 gx, gy = np.meshgrid(rx, ry)
@@ -167,7 +230,7 @@ gx, gy = np.meshgrid(rx, ry)
 X_2D = np.c_[gx.ravel(), gy.ravel()]
 
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(10):
+for i in range(3):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
 
 Y_2D_train = []
@@ -177,23 +240,10 @@ Y_2D_train = np.array(Y_2D_train)
 
 # Selection of new sampling locations
 for i in range(nIter):
-    print(i)
-    sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
+    print("sampling location: ", i)
+    sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
+    print("sample location: ", sampleLocation)
     X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
     Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1]) + noise_2D * np.random.randn()))
 
-# Plotting Results
-plt.figure(figsize=(14, 7))
-
-mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
-plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
-           f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
-
-res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
-               bounds=((1e-5, None), (1e-5, None)),
-               method='L-BFGS-B')
-
-mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
-plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
-           f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 2)
-plt.show()
+cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
