@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordinates
     # variables = [aType, aPath, aEvent, thrust, temperature, humidity];
