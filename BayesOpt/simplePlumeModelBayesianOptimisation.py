@@ -22,7 +22,7 @@ def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordi
     C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
             math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
 
-    return C
+    return C**0.1
 
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -176,7 +176,7 @@ def parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy):
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
-
+    print(res)
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
                f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 2)
@@ -218,10 +218,10 @@ dX = 1
 dY = 1
 
 # Explore/Exploit TradeOff
-kappa = 10000000
-gamma = -0.05
-nIter = 50
-noise_2D = 0.0001  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
+kappa = 10 #exploration/exploitation constant
+gamma = 0 #cost-to-evaluate
+nIter = 50 #number of points selected by BO algorithm
+noise_2D = 0.001  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
 gx, gy = np.meshgrid(rx, ry)
@@ -230,7 +230,7 @@ gx, gy = np.meshgrid(rx, ry)
 X_2D = np.c_[gx.ravel(), gy.ravel()]
 
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(3):
+for i in range(5):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
 
 Y_2D_train = []

@@ -126,14 +126,35 @@ def nll_fn(X_train, Y_train, noise, naive=False):
     else:
         return nll_stable
 
+def RMSE(mu, mu_s):
+    rmse = 0
+    n = len(mu)
+    for i in range(n):
+        rmse += (mu[i]-mu_s[i])**2
+    return math.sqrt(rmse/n)
 
-def simpleFunc(x, y):
-    return x + y + x * y ** 2
+def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
+    mu = []
+    for X in X_2D:
+        mu.append(func(X[0], X[1]))
+    mu = np.array(mu)
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    print("Root mean square error is: ",RMSE(mu, mu_s))
+    ax1.imshow(mu.reshape(gx.shape).T, interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
+    # plt.gca().invert_yaxis()
+    ax2.imshow(mu_s.reshape(gx.shape).T, interpolation="nearest",vmin=0, vmax=1, origin="upper")
+        # plt.gca().invert_yaxis()
+    plt.show()
 
 
 # Determine Domain Size and Width
 minX = 0.1
-maxX = 100
+maxX = 50
 minY = -10
 maxY = 10
 dX = 0.5
@@ -145,17 +166,21 @@ gx, gy = np.meshgrid(rx, ry)
 X_2D = np.c_[gx.ravel(), gy.ravel()]
 
 #Generate Training Data
-noise_2D = 0.1
+noise_2D = 0.01
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(30):
+for i in range(55):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
 Y_2D_train = []
 for points in X_2D_train:
     Y_2D_train.append(gaussianPlume(points[0], points[1]))
 Y_2D_train = np.array(Y_2D_train)
 
+cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
+
+
 
 # Plot Results through Gaussian Regression
+"""
 plt.figure(figsize=(14, 7))
 
 mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
@@ -170,4 +195,4 @@ res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
 mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
 plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
            f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 2)
-plt.show()
+plt.show()"""
