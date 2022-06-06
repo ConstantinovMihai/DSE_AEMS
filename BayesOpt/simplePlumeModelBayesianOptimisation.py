@@ -22,7 +22,7 @@ def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordi
     C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
             math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
 
-    return C**0.1
+    return C**0.15
 
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -169,17 +169,16 @@ def parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy):
     # Plotting Results
     plt.figure(figsize=(14, 7))
 
-    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
-    plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
-               f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
+    #mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
+    #plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
+    #           f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
 
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
-    print(res)
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
-               f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 2)
+               f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 1)
     plt.show()
 
 def RMSE(mu, mu_s):
@@ -207,21 +206,34 @@ def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
         # plt.gca().invert_yaxis()
     plt.show()
 
+def distanceTravelled(X_2D_train):
+    dist = 0
+    X0 = X_2D_train[0][0]
+    X1 = X_2D_train[0][1]
+    for X in X_2D_train:
+        dist += math.sqrt((X[0] - X0)**2 + (X[1]-X1)**2)
+        X0 = X[0]
+        X1 = X[1]
+    return dist
+
+
 
 
 # Determine Domain Size and Width
 minX = 0.1
-maxX = 100
+maxX = 50
 minY = -20
 maxY = 20
 dX = 1
 dY = 1
 
 # Explore/Exploit TradeOff
-kappa = 10 #exploration/exploitation constant
-gamma = 0 #cost-to-evaluate
+kappa = 300 #exploration/exploitation constant
+gamma = -0.5 #cost-to-evaluate
+#gamma = 0
+initialSamples = 5 #random initial samples
 nIter = 50 #number of points selected by BO algorithm
-noise_2D = 0.001  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
+noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
 gx, gy = np.meshgrid(rx, ry)
@@ -230,7 +242,7 @@ gx, gy = np.meshgrid(rx, ry)
 X_2D = np.c_[gx.ravel(), gy.ravel()]
 
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(5):
+for i in range(initialSamples):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
 
 Y_2D_train = []
@@ -240,10 +252,12 @@ Y_2D_train = np.array(Y_2D_train)
 
 # Selection of new sampling locations
 for i in range(nIter):
-    print("sampling location: ", i)
+    print("sampling number: ", i)
     sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
     print("sample location: ", sampleLocation)
     X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
     Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1]) + noise_2D * np.random.randn()))
 
-cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
+print("Total Distance Travelled: ", distanceTravelled(X_2D_train[initialSamples:]))
+parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy)
+#cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
