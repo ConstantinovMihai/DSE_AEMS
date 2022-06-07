@@ -6,6 +6,13 @@ from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
 from matplotlib import animation, cm
 import math
+
+from sqlalchemy import Constraint
+
+from domains import Point
+from domains import Domain
+from domains import Rect
+
 #new imports for 3D plot
 import matplotlib.pyplot as plt
 
@@ -135,36 +142,47 @@ def nll_fn(X_train, Y_train, noise, naive=False):
 def simpleFunc(x, y):
     return x + y + x * y ** 2
 
-
-# Upper Confidence Bound
-def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
-    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
-                   bounds=((1e-5, None), (1e-5, None)),
-                   method='L-BFGS-B')
-    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
-    mu_global  = np.mean(mu_s)
-    return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s))
-
 # Distance-based Upper Confidence Bound
-def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
+def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain : Domain):
+    """
+    DUCB acquisition function
+
+    Args:
+        :param: 
+        :param:
+    
+    Returns 
+    """
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     mu_global  = np.mean(mu_s)
+
     lastMeasurement = X_2D_train[-1]
     distance = []
+    
     for point in X_2D:
-        distance.append((lastMeasurement[0] - point[0])**2 + (lastMeasurement[1] - point[1])**2 + (lastMeasurement[2] - point[2])**2)
-    distance = np.sqrt(np.array(distance))
+        p = Point(point[0], point[1], point[2])
+        l = Point(lastMeasurement[0], lastMeasurement[1], lastMeasurement[2])    
+        distance.append(domain.computeDistance(p, l))
+
     print("average variance: ",np.mean(np.sqrt(np.diag(cov_s))))
+    distance = np.array(distance)
+    # return the DUCB metric formula
+    # weird normalisation in mu_global takes place
     return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s)) + gamma*distance
 
 
-def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
-    acquisitionFunc = DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
+def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain : Domain):
+    """
+    Proposes a sampling location based on the acquisition function
+
+    """
+    acquisitionFunc = DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain)
     sampleLocation = np.argmax(acquisitionFunc)
     return X_2D[sampleLocation]
+
 
 def parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy):
     # Plotting Results
@@ -233,7 +251,10 @@ def main3D():
     dX = 2
     dY = 2
     dZ = 2
-    restrictions = [[0, -5, 10], [5, 5, 20]]
+    
+    constr = Rect(Point(0, -5, 10), Point(5, 5, 20))
+    domain = Domain(Point(minX, minY, minZ), Point(maxX, maxY, maxZ), constr)
+
     rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
     gx, gy, gz = np.meshgrid(rx, ry, rz)
     X_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
@@ -262,7 +283,7 @@ def main3D():
 
     for i in range(nIter):
         print("sampling number: ", i)
-        sampleLocation = proposeLocation(X_3D, X_3D_train, Y_3D_train, noise_3D, kappa, gamma)
+        sampleLocation = proposeLocation(X_3D, X_3D_train, Y_3D_train, noise_3D, kappa, gamma, domain)
         print("sample location: ", sampleLocation)
         X_3D_train = np.vstack((X_3D_train, [sampleLocation[0], sampleLocation[1], sampleLocation[2]]))
         Y_3D_train = np.hstack(
