@@ -225,7 +225,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm, mass]
     torque constant KT [Nm/A], Nominal no-load current Im0 [A], motor resistance Rm [ohm], motor mass [g]
     """
-    rpm_range = np.arange(2200,10000,400) # Input max rpm here.
+    rpm_range = np.arange(2200,10000,100) # Input max rpm here.
 
     # Lists for efficiencies at 7.4N vs mass graph
     masses = []
@@ -273,7 +273,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
 def Battery_endurance(Tb, Im, Um):
     """
     Calculates endurance for battery in minutes
-    Battery parameters: Battery capacity Cb [Ah], battery minimum capacity Cmin (set at 0.2Cb),
+    Battery parameters: Battery capacity Cb [mAh], battery minimum capacity Cmin (set at 0.2Cb),
     battery voltage Ub [V]
     Set parameters (set for hovering thrust): motor current Im [A], motor voltage Um [V], ESC resistance Re [ohm]
     hovering time Tb [min]
