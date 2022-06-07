@@ -6,14 +6,15 @@ from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
 from matplotlib import animation, cm
 import math
+#new imports for 3D plot
+import matplotlib.pyplot as plt
 
 
-def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordinates
+def gaussianPlume(x, y, z):  # x,y coordinates relative to source, z in real coordinates
     # variables = [aType, aPath, aEvent, thrust, temperature, humidity];
     # constants = [alpha, beta]
     # wind = [uX, uY, uZ]
-    z = 5
-    H = 5
+    H = 2
     speed = 10
     Q = 100
     const = np.array([0.08, 0.0001, 0.5, 0.06, 0.0015, 0.5])
@@ -154,7 +155,7 @@ def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
     lastMeasurement = X_2D_train[-1]
     distance = []
     for point in X_2D:
-        distance.append((lastMeasurement[0] - point[0])**2 + (lastMeasurement[1] - point[1])**2)
+        distance.append((lastMeasurement[0] - point[0])**2 + (lastMeasurement[1] - point[1])**2 + (lastMeasurement[2] - point[2])**2)
     distance = np.sqrt(np.array(distance))
     print("average variance: ",np.mean(np.sqrt(np.diag(cov_s))))
     return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s)) + gamma*distance
@@ -210,53 +211,75 @@ def distanceTravelled(X_2D_train):
     dist = 0
     X0 = X_2D_train[0][0]
     X1 = X_2D_train[0][1]
+    X2 = X_2D_train[0][2]
     for X in X_2D_train:
-        dist += math.sqrt((X[0] - X0)**2 + (X[1]-X1)**2)
+        dist += math.sqrt((X[0] - X0)**2 + (X[1]-X1)**2 + (X[2]-X2)**2)
         X0 = X[0]
         X1 = X[1]
+        X2 = X[2]
     return dist
 
+def randomGenerate(minX, maxX, minY, maxY, minZ, maxZ, restrictions):
+    np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)
 
-# Determine Domain Size and Width
-minX = 0.1
-maxX = 50
-minY = -20
-maxY = 20
-dX = 1
-dY = 1
 
-# Explore/Exploit TradeOff
-#kappa = 15 #exploration/exploitation constant
-kappa = 50
-gamma = -0.1 #cost-to-evaluate
-#gamma = 0
-initialSamples = 10 #random initial samples
-nIter = 100 #number of points selected by BO algorithm
-noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
+def main3D():
+    minX = 0.1
+    maxX = 40
+    minY = -20
+    maxY = 20
+    minZ = 0
+    maxZ = 30
+    dX = 2
+    dY = 2
+    dZ = 2
+    restrictions = [[0, -5, 10], [5, 5, 20]]
+    rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
+    gx, gy, gz = np.meshgrid(rx, ry, rz)
+    X_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
+    # Explore/Exploit TradeOff
+    # kappa = 15 #exploration/exploitation constant
+    kappa = 3000
+    #gamma = -0.1  # cost-to-evaluate
+    gamma = 0
+    initialSamples = 20 # random initial samples
+    nIter = 10  # number of points selected by BO algorithm
+    noise_3D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
-rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
-gx, gy = np.meshgrid(rx, ry)
+    X_3D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]])
+    for i in range(initialSamples):
+        X_3D_train = np.vstack((X_3D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]))
 
-# Generate Initial Samples
-X_2D = np.c_[gx.ravel(), gy.ravel()]
+    Y_3D_train = []
+    for points in X_3D_train:
+        Y_3D_train.append(gaussianPlume(points[0], points[1], points[2]) + noise_3D * np.random.randn())
+    Y_3D_train = np.array(Y_3D_train)
 
-X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
-for i in range(initialSamples):
-    X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
+    Y_3D = []
+    for points in X_3D:
+        Y_3D.append(gaussianPlume(points[0], points[1], points[2]) + noise_3D * np.random.randn())
+    Y_3D = np.array(Y_3D)
 
-Y_2D_train = []
-for points in X_2D_train:
-    Y_2D_train.append(gaussianPlume(points[0], points[1]) + noise_2D * np.random.randn())
-Y_2D_train = np.array(Y_2D_train)
+    for i in range(nIter):
+        print("sampling number: ", i)
+        sampleLocation = proposeLocation(X_3D, X_3D_train, Y_3D_train, noise_3D, kappa, gamma)
+        print("sample location: ", sampleLocation)
+        X_3D_train = np.vstack((X_3D_train, [sampleLocation[0], sampleLocation[1], sampleLocation[2]]))
+        Y_3D_train = np.hstack(
+            (Y_3D_train, gaussianPlume(sampleLocation[0], sampleLocation[1], sampleLocation[2]) + noise_3D * np.random.randn()))
 
-# Selection of new sampling locations
-for i in range(nIter):
-    print("sampling number: ", i)
-    sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
-    print("sample location: ", sampleLocation)
-    X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
-    Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1]) + noise_2D * np.random.randn()))
 
-print("Total Distance Travelled: ", distanceTravelled(X_2D_train[initialSamples:]))
-parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy)
-#cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
+    print("Total Distance Travelled: ", distanceTravelled(X_3D_train[initialSamples:]))
+    res = minimize(nll_fn(X_3D_train, Y_3D_train, noise_3D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+
+    mu_s, cov_s = posterior(X_3D, X_3D_train, Y_3D_train, *res.x, sigma_y=noise_3D)
+
+    print(RMSE(Y_3D, mu_s))
+    fig = plt.figure(figsize=(4, 4))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(gx, gy, gz, c=mu_s)
+    plt.show()
+
+main3D()

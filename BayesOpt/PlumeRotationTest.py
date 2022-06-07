@@ -19,16 +19,16 @@ def gaussianPlume(x, y, aircraftSpeed, windSpeed):  # x,y coordinates relative t
             math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
 
     return C**0.1
-"""
 
+"""
 
 def gaussianPlume(x, y, aircraftSpeed, windSpeed):  # x,y coordinates relative to source, z in real coordinates
     # variables = [aType, aPath, aEvent, thrust, temperature, humidity];
     # constants = [alpha, beta]
     # wind = [uX, uY, uZ]
 
-    speed = aircraftSpeed-x*0.3
-    theta = -math.tan(windSpeed/aircraftSpeed)#*math.e**(windSpeed/x)
+    speed = aircraftSpeed*math.exp(-x/aircraftSpeed)
+    theta = -math.tan(windSpeed/aircraftSpeed)*(x/windSpeed)
     xdash = math.cos(theta)*x - math.sin(theta)*y
     ydash = math.sin(theta)*x + math.cos(theta)*y
     x = xdash
@@ -52,7 +52,7 @@ maxY = 50
 dX = 1
 dY = 1
 
-aircraftSpeed = 40
+aircraftSpeed = 200
 windSpeed = 5
 
 
@@ -68,5 +68,4 @@ for points in X_2D:
 Y_2D = np.array(Y_2D)
 plt.imshow(Y_2D.reshape(gx.shape).T, interpolation="nearest",vmin= 0.3, vmax=1, origin="upper")
 plt.show()
-
 
