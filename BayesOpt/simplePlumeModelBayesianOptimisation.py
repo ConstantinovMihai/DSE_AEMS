@@ -7,6 +7,8 @@ from scipy.optimize import minimize
 from matplotlib import animation, cm
 import math
 
+np.random.seed(2314)
+
 
 def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordinates
     # variables = [aType, aPath, aEvent, thrust, temperature, humidity];
@@ -227,7 +229,7 @@ dY = 1
 
 # Explore/Exploit TradeOff
 #kappa = 15 #exploration/exploitation constant
-kappa = 50
+kappa = 70
 gamma = -0.1 #cost-to-evaluate
 #gamma = 0
 initialSamples = 10 #random initial samples

@@ -53,8 +53,14 @@ def kernel(X1, X2, l=1.0, sigma_f=1.0):
 
 def plot_gp_2D(gx, gy, mu, X_train, Y_train, title, i):
     ax = plt.gcf().add_subplot(1, 2, i, projection='3d')
-    ax.plot_surface(gx, gy, mu.reshape(gx.shape), cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
-    ax.scatter(X_train[:, 0], X_train[:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
+    mu = mu.reshape(gx.shape)
+    mu = mu[:,:,0]
+    print(mu.shape)
+    print(gx.shape)
+    gx = gx[:, :, 0]
+    gy = gy[:, :, 0]
+    ax.plot_surface(gx, gy, mu ,cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
+    ax.scatter(X_train[:,:, 0], X_train[:,:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
     ax.set_title(title)
 
 
@@ -148,10 +154,10 @@ def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain : Domain):
     DUCB acquisition function
 
     Args:
-        :param: 
         :param:
-    
-    Returns 
+        :param:
+
+    Returns
     """
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
@@ -161,10 +167,10 @@ def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain : Domain):
 
     lastMeasurement = X_2D_train[-1]
     distance = []
-    
+
     for point in X_2D:
         p = Point(point[0], point[1], point[2])
-        l = Point(lastMeasurement[0], lastMeasurement[1], lastMeasurement[2])    
+        l = Point(lastMeasurement[0], lastMeasurement[1], lastMeasurement[2])
         distance.append(domain.computeDistance(p, l))
 
     print("average variance: ",np.mean(np.sqrt(np.diag(cov_s))))
@@ -210,7 +216,7 @@ def RMSE(mu, mu_s):
 def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
     mu = []
     for X in X_2D:
-        mu.append(func(X[0], X[1]))
+        mu.append(func(X[0], X[1], X[2]))
     mu = np.array(mu)
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
@@ -219,9 +225,11 @@ def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     fig, (ax1, ax2) = plt.subplots(1, 2)
     print("Root mean square error is: ",RMSE(mu, mu_s))
-    ax1.imshow(mu.reshape(gx.shape).T, interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
+    mu = mu.reshape(gx.shape).T
+    mu_s = mu_s.reshape(gx.shape).T
+    ax1.imshow(mu[:,:,5], interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
     # plt.gca().invert_yaxis()
-    ax2.imshow(mu_s.reshape(gx.shape).T, interpolation="nearest",vmin=0, vmax=1, origin="upper")
+    ax2.imshow(mu_s[:,:,5], interpolation="nearest",vmin=0, vmax=1, origin="upper")
         # plt.gca().invert_yaxis()
     plt.show()
 
@@ -251,10 +259,8 @@ def main3D():
     dX = 2
     dY = 2
     dZ = 2
-    
-    constr = Rect(Point(0, -5, 10), Point(5, 5, 20))
+    constr = Rect(Point(0,-5,10), Point(5,5,20))
     domain = Domain(Point(minX, minY, minZ), Point(maxX, maxY, maxZ), constr)
-
     rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
     gx, gy, gz = np.meshgrid(rx, ry, rz)
     X_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
@@ -296,11 +302,13 @@ def main3D():
                    method='L-BFGS-B')
 
     mu_s, cov_s = posterior(X_3D, X_3D_train, Y_3D_train, *res.x, sigma_y=noise_3D)
-
+    """
     print(RMSE(Y_3D, mu_s))
     fig = plt.figure(figsize=(4, 4))
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(gx, gy, gz, c=mu_s)
+    plt.show()"""
+    cutPlot(X_3D, X_3D_train, Y_3D_train, noise_3D, gx, gy, gaussianPlume)
     plt.show()
 
 main3D()
