@@ -2,7 +2,7 @@ import Performance_Analysis as eq
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import xlsxwriter
+# import xlsxwriter
 """
 Propeller Modeling Parameters
 :param: Gp - Propeller Weight [g]
@@ -170,15 +170,15 @@ def propellerComparison(propellerMatrix, labda, dzeta, K0, eta, alpha0,total_wei
 
 #propellerComparison(propellerMatrix[1:66,1:7], labda, dzeta, K0, eta, alpha0,3.028)
 #propellerComparison(viableOptions, labda, dzeta, K0, eta, alpha0,3.028)
-def motor_U_I(M, N, KT, Im0, Rm):
+def motor_U_I(M, N0, KT, Im0, Rm):
     """
     Calculates motor voltage U [V] and current I [A].
     Parameters: motor torque M = propeller torque [Nm], motor speed N = propeller speed [rpm]
     Torque constant KT [Nm/A] = 9.55((Um0 − Im0*Rm) / (KV0*Um0)), Nominal no-load current Im0 [A],
     resistance Rm [Ohm]
     """
-    U = (M / KT + Im0) * Rm + KT * N / 9.55
-    I = M / KT + Im0
+    U = (M / KT + Im0) * Rm + KT * N0 / 9.55
+    I = (M / KT + Im0)
     return U, I
 
 def propellerEfficiency(propellerMatrix,Cfd,labda,dzeta,K0,eta,alpha0,e,**kwargs):
@@ -220,93 +220,141 @@ def propellerEfficiency(propellerMatrix,Cfd,labda,dzeta,K0,eta,alpha0,e,**kwargs
 
 
     return
-propellerEfficiency(viableOptions,Cfd,labda,dzeta,K0,eta,alpha0,e)
+# propellerEfficiency(viableOptions,Cfd,labda,dzeta,K0,eta,alpha0,e)
 
 
 
 
-def calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,N,Dp,**kwargs):
-    """
-    :param: labda - [-]
-    :param: dzeta - [-]
-    :param: N - [rpm]
-    :param: K0 - [-]
-    :param: eta - [-]
-    :param: Hp - [m]
-    :param: Dp - [m]
-    :param: alpha0 - [rad]
-    """
-    A = 5
-    thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
-    return thrust
+# def calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,N,Dp,**kwargs):
+#     """
+#     :param: labda - [-]
+#     :param: dzeta - [-]
+#     :param: N - [rpm]
+#     :param: K0 - [-]
+#     :param: eta - [-]
+#     :param: Hp - [m]
+#     :param: Dp - [m]
+#     :param: alpha0 - [rad]
+#     """
+#     A = 5
+#     thrust = eq.thrustCoefficient(labda,dzeta,2,K0,eta,Hp,Dp,alpha0,A) * 1.225 * (N/60)**2 * Dp**4
+#     return thrust
+#
+#
+# def calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
+#     """
+#     :param: labda - [-]
+#     :param: dzeta - [-]
+#     :param: N - [rpm]
+#     :param: K0 - [-]
+#     :param: eta - [-]
+#     :param: Hp - [m]
+#     :param: Dp - [m]
+#     :param: alpha0 - [rad]
+#     :param: Cfd - [-]
+#     :return: The torque for the specified RPMs
+#     """
+#     A = 5
+#     C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
+#     moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
+#     return moment
 
 
-def calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, N):
-    """
-    :param: labda - [-]
-    :param: dzeta - [-]
-    :param: N - [rpm]
-    :param: K0 - [-]
-    :param: eta - [-]
-    :param: Hp - [m]
-    :param: Dp - [m]
-    :param: alpha0 - [rad]
-    :param: Cfd - [-]
-    :return: The torque for the specified RPMs
-    """
-    A = 5
-    C_d = eq.dragCoefficient(Cfd, A, K0, e, eta, Hp, Dp, alpha0)
-    moment = eq.momentCoefficient(C_d, A, labda, dzeta, 2) * 1.225 * (N/60)**2 * Dp**5
-    return moment
+# def motor_efficiency(M, N0, rpm, KT, Im0, Rm):
+#     U, I = motor_U_I(M, N0, KT, Im0, Rm)
+#     N = rpm * 0.10472
+#     efficiency = M * N / (U*I)
+#     return efficiency
+#
+# #Chosen Propeller APC 15x6E
+# def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
+#     """
+#     Makes 2 graphs to decide on a motor: Thrust vs efficiency and mass vs efficiency at hovering
+#     motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm, mass, N0]
+#     torque constant KT [Nm/A], Nominal no-load current Im0 [A], motor resistance Rm [ohm], motor mass [g]
+#     """
+#     rpm_range = np.arange(2000,7500,100) # Input max rpm here.
+#
+#     # Lists for efficiencies at 7.4N vs mass graph
+#     masses = []
+#     efficiencies74N = []
+#     names = []
+#
+#     # thrust vs efficiency graphs
+#     for motor in motor_matrix:
+#         name = motor[0]
+#         names.append(name)
+#         KT = motor[1]
+#         Im0 = motor[2]
+#         Rm = motor[3]
+#         masses.append(motor[4])
+#         N0 = motor[5]
+#
+#         thrusts = []
+#         efficiencies = []
+#         for rpm in rpm_range:
+#             thrust = propellerThrust(labda, dzeta, K0, eta, alpha0,2,Dp,Hp,rpm)
+#             thrusts.append(thrust)
+#             torque = propellerTorque(Cfd, K0, e, eta, alpha0, labda, dzeta, 2,Hp, Dp, rpm, 8.67)
+#             eff = motor_efficiency(torque, N0, rpm, KT, Im0, Rm)
+#             efficiencies.append(eff)
+#             if rpm == 3500:
+#                 Um, Im = motor_U_I(torque, N0, KT, Im0, Rm)
+#                 print(name, 'I=', Im, 'Um=', Um, 'torque=', torque, 'efficiency:', eff)
+#             if rpm == 3500:
+#                 efficiencies74N.append(eff)
+#         plt.scatter(thrusts, efficiencies, label=name)
+#     plt.axvline(x=totalweight/4, color='b', linestyle='dotted', label='Hovering thrust')
+#     plt.axvline(x=totalweight/2, color='r', linestyle='dotted', label='T/W = 2')
+#     plt.xlabel('Thrust [N]')
+#     plt.ylabel('Motor efficiency')
+#     plt.legend()
+#     plt.show()
+#
+#     # graph efficiencies at 7.4N vs mass
+#     print(names, masses, efficiencies74N)
+#     plt.scatter(masses, efficiencies74N)
+#     plt.xlabel('masses [g]')
+#     plt.ylabel('Motor efficiency at 7.4N')
+#     for i, label in enumerate(names):
+#         plt.annotate(label, (masses[i], efficiencies74N[i]))
+#     plt.show()
 
-
-def motor_efficiency(M, rpm, KT, Im0, Rm):
-    U, I = motor_U_I(M, rpm, KT, Im0, Rm)
+def motor_efficiency(M, rpm, U, I):
     N = rpm * 0.10472
     efficiency = M * N / (U*I)
     return efficiency
 
-#Chosen Propeller APC 15x6E
 def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alpha0, Cfd, e):
     """
     Makes 2 graphs to decide on a motor: Thrust vs efficiency and mass vs efficiency at hovering
-    motor_matrix should have a row for each motor with: ['name', KT, Im0, Rm, mass]
+    motor_matrix should have a row for each motor with: ['name', U1, I1, U2, I2, mass]
     torque constant KT [Nm/A], Nominal no-load current Im0 [A], motor resistance Rm [ohm], motor mass [g]
     """
-    rpm_range = np.arange(2200,10000,100) # Input max rpm here.
 
     # Lists for efficiencies at 7.4N vs mass graph
     masses = []
     efficiencies74N = []
+    efficienciesTW2 = []
     names = []
 
     # thrust vs efficiency graphs
     for motor in motor_matrix:
         name = motor[0]
         names.append(name)
-        KT = motor[1]
-        Im0 = motor[2]
-        Rm = motor[3]
-        masses.append(motor[4])
+        masses.append(motor[5])
+        U1 = motor[1]
+        I1 = motor[2]
+        U2 = motor[3]
+        I2 = motor[4]
 
-        thrusts = []
-        efficiencies = []
-        for rpm in rpm_range:
-            thrust = calc_propellerThrust(labda,dzeta,K0,eta,Hp,alpha0,rpm,Dp)
-            thrusts.append(thrust)
-            torque = calc_propellerTorque(Cfd, K0, e,eta,Hp,Dp,alpha0, labda, dzeta, rpm)
-            eff = motor_efficiency(torque, rpm, KT, Im0, Rm)
-            efficiencies.append(eff)
-            if rpm == 5800:
-                print(name, thrust)
-                efficiencies74N.append(eff)
-        plt.scatter(thrusts, efficiencies, label=name)
-    plt.axvline(x=totalweight/4, color='b', linestyle='dotted', label='Hovering thrust')
-    plt.axvline(x=totalweight/2, color='r', linestyle='dotted', label='T/W = 2')
-    plt.xlabel('Thrust [N]')
-    plt.ylabel('Motor efficiency')
-    plt.legend()
-    plt.show()
+        torque1 = propellerTorque(Cfd, K0, e, eta, alpha0, labda, dzeta, 2,Hp, Dp, 3500, 8.67)
+        eff1 = motor_efficiency(torque1, 3500, U1, I1)
+        efficiencies74N.append(eff1)
+
+        torque2 = propellerTorque(Cfd, K0, e, eta, alpha0, labda, dzeta, 2, Hp, Dp, 5500, 8.67)
+        eff2 = motor_efficiency(torque2, 5500, U2, I2)
+        efficienciesTW2.append(eff2)
 
     # graph efficiencies at 7.4N vs mass
     print(names, masses, efficiencies74N)
@@ -316,6 +364,16 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     for i, label in enumerate(names):
         plt.annotate(label, (masses[i], efficiencies74N[i]))
     plt.show()
+
+    # graph efficiencies at T/W=2 vs mass
+    print(names, masses, efficienciesTW2)
+    plt.scatter(masses, efficienciesTW2)
+    plt.xlabel('masses [g]')
+    plt.ylabel('Motor efficiency at T/W=2.5')
+    for i, label in enumerate(names):
+        plt.annotate(label, (masses[i], efficienciesTW2[i]))
+    plt.show()
+
 
 
 def Battery_endurance(Tb, Im, Um):
@@ -360,14 +418,14 @@ Using/testing the fuctions (Uncomment what you want to use):
 # propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
 
 # propellerComparison(eleveninchprops, labda, dzeta, K0, eta, alpha0,3.028)
-#motor_matrix = matrix_gen_options(2)[2:17,1:6]
-#compare_motor_efficiencies(motor_matrix, 0.1397, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
-#Im, Um = motor_U_I(0.15044989095978484, 5800, 0.0295, 0.277, 0.447)
-#Battery_endurance(25, Im, Um)
+motor_matrix = matrix_gen_options(2)[0:6,0:6]
+compare_motor_efficiencies(motor_matrix, 0.15239999999999998, 0.381, labda, dzeta, K0, eta, alpha0, Cfd, e)
+# Battery_endurance(25, Im, Um)
 
 """
 Current choices:
 """
+# Chosen Propeller it 2: APC 15x6E
 # Choice iteration 1 propeller: 11 inch x 5.5 inch (22.9631112g * 4 = 91.8524448g)
 # Choice iteration 1 motor: Maxon 608131 (113g * 4 = 452g)
 # Choice iteration 1 ESC: Maxon 438725 (12g * 4 = 48g)
