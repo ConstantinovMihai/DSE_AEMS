@@ -6,75 +6,32 @@ from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
 from matplotlib import animation, cm
 import math
+
 from sqlalchemy import Constraint
+
 from domains import Point
 from domains import Domain
 from domains import Rect
+
+#new imports for 3D plot
 import matplotlib.pyplot as plt
 
-#TODO Implement Proper Total Distance Travelled Calculation
 
+def gaussianPlume(x, y, z):  # x,y coordinates relative to source, z in real coordinates
+    # variables = [aType, aPath, aEvent, thrust, temperature, humidity];
+    # constants = [alpha, beta]
+    # wind = [uX, uY, uZ]
+    H = 2
+    speed = 10
+    Q = 100
+    const = np.array([0.08, 0.0001, 0.5, 0.06, 0.0015, 0.5])
+    sigma_y = const[0] * x / np.power((1 + const[1] * x), const[2])
+    sigma_z = const[3] * x / np.power((1 + const[4] * x), const[5])
+    C = Q / speed * (1 / (2 * np.pi * sigma_y * sigma_z)) * math.exp(-0.5 * (y / sigma_y) ** 2) * (
+            math.exp(-0.5 * ((z - H) / sigma_z) ** 2) + math.exp(-0.5 * ((z + H) / sigma_z) ** 2))
 
-def gaussianPlumeInstant(receiverPosition: np.array, sourcePosition: np.array, time: float, h: float, H:float, aircraftSpeed: np.array, windVector: np.array, Q: float =10000):  # x,y coordinates relative to source, z in real coordinates
-    """
-    Function called by sumGaussianPlume
-    Calculates the concentration as a result of the plume at a specific instant in time
-    :param receiverPosition: specific position of measurement of value e.g. drone
-    :param sourcePosition: specific position of the source of the emission e.g. aircraft
-    :param time: time of event
-    :param h: height of the source with respect to the ground
-    :param H: float
-    :param aircraftSpeed: np.array[xVelocity, yVelocity, zVelocity]
-    :param windVector: np.array[xVelocity, yVelocity, zVelocity]
-    :param Q: float
-    :return:
-    """
-    #calculate distance between reciever and position
-    distance = receiverPosition - sourcePosition
-    #aircraft plume dispersion
-    alpha = 0.02
-    wind = aircraftSpeed*math.exp(-alpha*distance[0])
-    #create overall dispersion
-    wind += windVector
-    #y axis wind flipped due to weird flipped behavior
-    wind[1] = -wind[1]
-    #dispersion coefficients
-    sigma_x = 0.22*distance[0]*(1+0.0001*distance[0])**(-0.5)
-    sigma_y = sigma_x
-    sigma_z = 0.2*distance[0]
-    #Generate Gaussian Plume Model based on Kazakh Paper
-    Q = 10000
-    Q1 = Q/((2*math.pi)**(1.5)*sigma_x*sigma_y*sigma_z)
-    Qx = math.exp(-((distance[0])*wind[0] - (distance[1])*wind[1] - (wind[0]**2 + wind[1]**2)*(time))**2/(2*(sigma_x**2)*(wind[0]**2 + wind[1]**2)))
-    Qy = math.exp(-(distance[0]*wind[1] + distance[1]*wind[0])**2/(2*(sigma_y**2)*(wind[0]**2 + wind[1]**2)))
-    Qz = math.exp(-(distance[2] + h)**2/(2*sigma_z**2)) + math.exp(-(distance[2] - h + 2*H)**2/(2*sigma_z**2))
-    C = Q1*Qx*Qy*Qz
-    #Return concentration - scaled by power of 0.1 for easier analysisof plot
-    return C**0.1
+    return C**0.15
 
-def sumGaussianPlume(receiverPosition: np.array, aircraftPositionEvent: np.array, aircraftEventTime: float, timeStep: float, hEvent: np.array, H:float, aircraftSpeedEvent: np.array, windVector:np.array, QEvent: np.array):
-    """
-    Calculates the total Gaussian Plume experienced by the reciever due to the source moving in time
-    :param receiverPosition: constant position of reciever over time
-    :param aircraftPositionEvent: array containing position of aircraft over time contained as a matrix
-    :param timeStep: total time step of the process
-    :param h: height of the source with respect to the ground (considered as changing over time due to takeoff/landing)
-    :param H: mixing layer Height (set to 0)
-    :param aircraftSpeedEvent: speed of aircraft throughtout event
-    :param windVector: speed of wind set as a constant vector throughtout event
-    :param QEvent: source of emissions over time
-    :return:
-    """
-    C = 0
-    time = aircraftEventTime
-    i = 0
-    #sum over time
-    for aircraftPosition in aircraftPositionEvent:
-        #H is set to zero
-        C += timeStep * gaussianPlumeInstant(receiverPosition, aircraftPosition, time, hEvent[i], 0, aircraftSpeedEvent[i], windVector, QEvent[i])
-        time -= timeStep #as you move through the aircraft event the time between the measurement and the emission decreases
-        i += 1
-    return C
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
     """
@@ -87,13 +44,25 @@ def kernel(X1, X2, l=1.0, sigma_f=1.0):
     Returns:
         (m x n) matrix.
     """
-    #implementation of RBF kernel
     sqdist = np.sum(X1 ** 2, 1).reshape(-1, 1) + np.sum(X2 ** 2, 1) - 2 * np.dot(X1, X2.T)
     kernelRBF = sigma_f ** 2 * np.exp(-0.5 / l ** 2 * sqdist) #at 200 iter RMSE 0.152
     dist = np.sqrt(sqdist)
-    #implementation of Matern kernel
     kernelMatern = sigma_f ** 2 * (1+ np.sqrt(5)*dist/l + 5*dist**2/(3*l**2))*np.exp(-5*dist/l) #at 200 iter RMSE 0.07784
     return kernelRBF
+
+
+def plot_gp_2D(gx, gy, mu, X_train, Y_train, title, i):
+    ax = plt.gcf().add_subplot(1, 2, i, projection='3d')
+    mu = mu.reshape(gx.shape)
+    mu = mu[:,:,0]
+    print(mu.shape)
+    print(gx.shape)
+    gx = gx[:, :, 0]
+    gy = gy[:, :, 0]
+    ax.plot_surface(gx, gy, mu ,cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
+    ax.scatter(X_train[:,:, 0], X_train[:,:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
+    ax.set_title(title)
+
 
 def posterior(X_s, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1e-8):
     """
@@ -176,78 +145,95 @@ def nll_fn(X_train, Y_train, noise, naive=False):
         return nll_stable
 
 
+def simpleFunc(x, y):
+    return x + y + x * y ** 2
+
 # Distance-based Upper Confidence Bound
-def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
+def DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain : Domain):
     """
     DUCB acquisition function
-    :param X_2D: Total coordinates
-    :param X_2D_train: coordinates sampled
-    :param Y_2D_train: value of coordinates sampled
-    :param noise_2D: noise of data
-    :param kappa: #Exploration/Exploitation trade-off
-    :return: total value of ucb value
+
+    Args:
+        :param:
+        :param:
+
+    Returns
     """
-    #Assign mean and variance to each point in the domain based on concentration
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     mu_global  = np.mean(mu_s)
-    # return the UCB metric formula
-    # weird normalisation in mu_global takes place to help intuitively understand UCB
-    return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s))
 
-def DUCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa, gamma, domain : Domain):
-    """
-    Compute total DUCB acquisition function for all concentrations
-    :param X_2D: Total coordinates
-    :param X_2D_train: coordinates sampled
-    :param Y_2D_train_concentrations: value of coordinates sampled with all concentrations
-    :param noise_2D: noise of data
-    :param kappa: #Exploration/Exploitation
-    :param domain: Domain for distance function
-    :return: total DUCB function
-    """
-    # compute total acquistionFunc
-    acquisitionFunc = 0
-    # go through the acquisitionFunc for each concentration
-    for Y_2D_train in Y_2D_train_concentrations:
-        tempAcquisitionFunc = UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
-        #normalise acquisitionFunction for each concentration
-        meanAcquisitionFunc = np.mean(tempAcquisitionFunc)
-        acquisitionFunc += tempAcquisitionFunc/meanAcquisitionFunc
-
-    #compute distance to travel to all locations within domain
     lastMeasurement = X_2D_train[-1]
     distance = []
+
     for point in X_2D:
         p = Point(point[0], point[1], point[2])
         l = Point(lastMeasurement[0], lastMeasurement[1], lastMeasurement[2])
         distance.append(domain.computeDistance(p, l))
+
+    print("average variance: ",np.mean(np.sqrt(np.diag(cov_s))))
     distance = np.array(distance)
     # return the DUCB metric formula
-    return acquisitionFunc + gamma*distance
+    # weird normalisation in mu_global takes place
+    return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s)) + gamma*distance
+
+
+def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain : Domain):
+    """
+    Proposes a sampling location based on the acquisition function
+
+    """
+    acquisitionFunc = DUCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, domain)
+    sampleLocation = np.argmax(acquisitionFunc)
+    return X_2D[sampleLocation]
+
+
+def parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy):
+    # Plotting Results
+    plt.figure(figsize=(14, 7))
+
+    #mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
+    #plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
+    #           f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
+
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
+               f'After parameter optimization: l={res.x[0]:.2f} sigma_f={res.x[1]:.2f}', 1)
+    plt.show()
 
 def RMSE(mu, mu_s):
-    """
-    compute error of total model from real values
-    :param mu: true mean of model
-    :param mu_s: estimated mean of model
-    :return: root mean square error
-    """
     rmse = 0
     n = len(mu)
     for i in range(n):
         rmse += (mu[i]-mu_s[i])**2
     return math.sqrt(rmse/n)
 
-#computes the total distance travelled as
-def distanceTravelled(X_2D_train : np.array):
-    """
-    Computes total distance travelled
-    :param X_2D_train: locations sampled
-    :return: euclidian distance
-    """
+def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
+    mu = []
+    for X in X_2D:
+        mu.append(func(X[0], X[1], X[2]))
+    mu = np.array(mu)
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+    fig, (ax1, ax2) = plt.subplots(1, 2)
+    print("Root mean square error is: ",RMSE(mu, mu_s))
+    mu = mu.reshape(gx.shape).T
+    mu_s = mu_s.reshape(gx.shape).T
+    ax1.imshow(mu[:,:,5], interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
+    # plt.gca().invert_yaxis()
+    ax2.imshow(mu_s[:,:,5], interpolation="nearest",vmin=0, vmax=1, origin="upper")
+        # plt.gca().invert_yaxis()
+    plt.show()
+
+def distanceTravelled(X_2D_train):
     dist = 0
     X0 = X_2D_train[0][0]
     X1 = X_2D_train[0][1]
@@ -263,38 +249,29 @@ def randomGenerate(minX, maxX, minY, maxY, minZ, maxZ, restrictions):
     np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)
 
 
-aircraftPositionEvent = np.array([[0,0,0], [2,0,0]])
-aircraftSpeedEvent = np.array([[100,0,0], [100,0,0]])
-timeEvent = 1
-aircraftSpeedEvent = np.array([[3,5,0], [3,5,0]])
-QEvent = np.array([[10000],[10000]])
-hEvent = np.array([[0.5], [0.5]])
-C = sumGaussianPlume([10,0,0], aircraftPositionEvent, timeEvent, 0.5, hEvent,0, aircraftSpeedEvent, np.array([0,10,0]), QEvent)
-print(C)
-
-
 def main3D():
     minX = 0.1
     maxX = 40
     minY = -20
     maxY = 20
     minZ = 0
-    maxZ = 30
-    dX = 2
-    dY = 2
-    dZ = 2
-    constr = Rect(Point(0,-5,10), Point(5,5,20))
+    maxZ = 40
+    dX = 4
+    dY = 4
+    dZ = 4
+    constr = Rect(Point(0,-5,10), Point(0,-5,10))
     domain = Domain(Point(minX, minY, minZ), Point(maxX, maxY, maxZ), constr)
     rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
     gx, gy, gz = np.meshgrid(rx, ry, rz)
     X_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
+    print(X_3D)
     # Explore/Exploit TradeOff
     # kappa = 15 #exploration/exploitation constant
     kappa = 3000
     #gamma = -0.1  # cost-to-evaluate
     gamma = 0
     initialSamples = 20 # random initial samples
-    nIter = 10  # number of points selected by BO algorithm
+    nIter = 20  # number of points selected by BO algorithm
     noise_3D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
     X_3D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]])
@@ -326,13 +303,14 @@ def main3D():
                    method='L-BFGS-B')
 
     mu_s, cov_s = posterior(X_3D, X_3D_train, Y_3D_train, *res.x, sigma_y=noise_3D)
-    """
+
     print(RMSE(Y_3D, mu_s))
     fig = plt.figure(figsize=(4, 4))
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(gx, gy, gz, c=mu_s)
-    plt.show()"""
+    plt.show()
+    """
     cutPlot(X_3D, X_3D_train, Y_3D_train, noise_3D, gx, gy, gaussianPlume)
     plt.show()
-
-#main3D()
+    """
+main3D()
