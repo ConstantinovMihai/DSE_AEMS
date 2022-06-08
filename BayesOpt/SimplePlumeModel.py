@@ -11,8 +11,11 @@ from domains import Point
 from domains import Domain
 from domains import Rect
 import matplotlib.pyplot as plt
+import time
 
 #TODO Implement Proper Total Distance Travelled Calculation
+#TODO Implement Averages for ScatterPlotGenerate
+#TODO SumGaussianPlume giving wrong values
 
 
 def gaussianPlumeInstant(receiverPosition: np.array, sourcePosition: np.array, time: float, h: float, H:float, aircraftSpeed: np.array, windVector: np.array, Q: float =10000):  # x,y coordinates relative to source, z in real coordinates
@@ -52,7 +55,7 @@ def gaussianPlumeInstant(receiverPosition: np.array, sourcePosition: np.array, t
     #Return concentration - scaled by power of 0.1 for easier analysisof plot
     return C**0.1
 
-def sumGaussianPlume(receiverPosition: np.array, aircraftPositionEvent: np.array, aircraftEventTime: float, timeStep: float, hEvent: np.array, H:float, aircraftSpeedEvent: np.array, windVector:np.array, QEvent: np.array):
+def sumGaussianPlume(receiverPosition: np.array, aircraftPositionEvent: np.array, aircraftEventTime: float, timeStep: float, hEvent: np.array, aircraftSpeedEvent: np.array, windVector:np.array, QEvent: np.array ,H:float = 0):
     """
     Calculates the total Gaussian Plume experienced by the reciever due to the source moving in time
     :param receiverPosition: constant position of reciever over time
@@ -241,7 +244,7 @@ def RMSE(mu, mu_s):
         rmse += (mu[i]-mu_s[i])**2
     return math.sqrt(rmse/n)
 
-#computes the total distance travelled as
+#To be fixed
 def distanceTravelled(X_2D_train : np.array):
     """
     Computes total distance travelled
@@ -259,9 +262,129 @@ def distanceTravelled(X_2D_train : np.array):
         X2 = X[2]
     return dist
 
-def randomGenerate(minX, maxX, minY, maxY, minZ, maxZ, restrictions):
-    np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)
 
+
+def generateMesh(xDomain: np.array, yDomain: np.array, zDomain: np.array, constr1: np.array, constr2: np.array):
+    """
+    Generates discretised mesh based on domains and constraints
+    :param xDomain: np.array([xMin, xMax, dX])
+    :param yDomain: np.array([yMin, yMax, dY])
+    :param zDomain: np.array([zMin, zMax, dZ])
+    :param constr1: np.array([xPoint1, yPoint1, zPoint1]) set top lower left most corner of domain
+    :param constr2: np.array([xPoint2, yPoint2, zPoint2]) set back top right most corner of damin
+    :return: discretised domain points
+    """
+    rx, ry, rz = np.arange(xDomain[0], xDomain[1], xDomain[2]), np.arange(yDomain[0], yDomain[1], yDomain[2]), np.arange(zDomain[0], zDomain[1], zDomain[2])
+    gx, gy, gz = np.meshgrid(rx, ry, rz)
+    tempX_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
+    status = False
+    for location in tempX_3D:
+        if not(constr1[0] <= location[0] <= constr2[0] and constr1[1] <= location[1] <= constr2[1] and constr1[2] <= location[2] <= constr2[2]):
+            if status:
+                X_3D = np.vstack((X_3D, location))
+            else:
+                X_3D = np.array(location)
+                status = True
+
+    return X_3D
+
+
+def ScatterPlotGenerate3D(X_3D: np.array):
+    """
+    Generates scatter plot
+    :param X_3D: domain
+    :return: plot
+    """
+    fig = plt.figure(figsize=(4, 4))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(X_3D[:, 0], X_3D[:, 1], X_3D[:, 2])
+    ax.set_xlabel('x label')
+    ax.set_ylabel('y label')
+    ax.set_ylabel('z label')
+    ax.set_xlim3d(min(X_3D[:, 0]), max(X_3D[:, 0]))
+    ax.set_ylim3d(min(X_3D[:, 1]), max(X_3D[:, 1]))
+    ax.set_zlim3d(min(X_3D[:, 2]), max(X_3D[:, 2]))
+    plt.show()
+
+
+def randomGenerate(X_3D: np.array, nRand: int):
+    """
+    Returns random number of samples
+    :param X_3D: discretised mesh
+    :param nRand: number of random points needed
+    :return: return sample point
+    """
+    return X_3D[np.random.randint(len(X_3D), size=nRand)]
+
+def generateAircraftTakeOffEvent(startLocation : np.array, totalTime: float, timeStep: float):
+    """
+    Simulate aircraft takeOff Event
+    :param startLocation: select location from which the aircraft takesoff from
+    :param totalTime: total time of interest during measurement
+    :param timeStep: time step of measurements
+    :return: aircraft position over time, aircraft speed over time, height of emission source over time
+    """
+    a = 6 #aircraft acceleration set as constant based on paper "Simplified Algorithm to Model Aircraft Acceleration During Takeoff"
+    takeOffVelocity = 70 #~737 TakeOff Velocity
+    takeOffGradient = 3 #Above FAA legislation for two engine aircraft
+    velocity = 0
+    nStep = int(totalTime/timeStep)
+    h = 5
+    aircraftPosition = startLocation
+    aircraftPositionEvent = np.array([])
+    hEvent = []
+    aircraftSpeedEvent = []
+    for i in range(nStep):
+        #compute velocity over time
+        velocity += a*timeStep
+        aircraftSpeedEvent.append([velocity, 0, 0])
+        #compute position over time
+        aircraftPosition -= np.array([velocity, 0, 0])
+        aircraftPositionEvent = np.concatenate((aircraftPositionEvent, aircraftPosition))
+        #compute height over time
+        if velocity > takeOffVelocity:
+            h += velocity*timeStep*takeOffGradient/100
+        hEvent.append(h)
+    return aircraftPositionEvent.reshape(nStep, 3), np.array(aircraftSpeedEvent), np.array(hEvent)
+
+
+def pollutionAircraftEvent(aircraftStartLocation: np.array, receiverLocation : np.array, totalTime: float, timeStep: float):
+    """
+    Calculates the total pollution experienced by a point over time and integrates the generation of aircraft events
+    :param aircraftStartLocation:
+    :param receiverLocation:
+    :param totalTime:
+    :param timeStep:
+    :return: list with polluton levels over time
+    """
+    Q = np.array([10000]*int(totalTime/timeStep))
+    windVector = np.array([0,5,0])
+    aircraftPositionEvent, aircraftSpeedEvent, hEvent = generateAircraftTakeOffEvent(aircraftStartLocation, totalTime, timeStep)
+    C = np.array([])
+    timeArray = np.linspace(1, totalTime, int(totalTime/timeStep))
+    for time in timeArray:
+        print(time)
+        tempC = np.array([sumGaussianPlume(receiverLocation, aircraftPositionEvent, time, timeStep, hEvent, aircraftSpeedEvent, windVector, Q)])
+        C=np.concatenate((C, tempC))
+    return C
+aircraftStartLocation = np.array([200.0, 0, 0])
+receiverLocation = np.array([300,0,0])
+totalTime = 10
+timeStep = 1
+print(pollutionAircraftEvent(aircraftStartLocation, receiverLocation, totalTime, timeStep))
+"""
+startLocation = np.array([100.0, 0, 0])
+totalTime = 15
+timeStep = 0.5
+print(generateAircraftTakeOffEvent(startLocation, totalTime, timeStep))
+minX, maxX, dX = 0.1, 40, 2
+minY, maxY, dY = -20, 20, 2
+minZ, maxZ, dZ = 0, 30, 2
+constr1 = [0,-10,10]
+constr2 = [20,10,20]
+X_3D = generateMesh([minX, maxX, dX],[minY, maxY, dY], [minZ, maxZ, dZ], constr1, constr2)
+#ScatterPlotGenerate3D(X_3D)
+print(randomGenerate(X_3D, 5))
 
 aircraftPositionEvent = np.array([[0,0,0], [2,0,0]])
 aircraftSpeedEvent = np.array([[100,0,0], [100,0,0]])
@@ -271,19 +394,15 @@ QEvent = np.array([[10000],[10000]])
 hEvent = np.array([[0.5], [0.5]])
 C = sumGaussianPlume([10,0,0], aircraftPositionEvent, timeEvent, 0.5, hEvent,0, aircraftSpeedEvent, np.array([0,10,0]), QEvent)
 print(C)
-
+"""
 
 def main3D():
-    minX = 0.1
-    maxX = 40
-    minY = -20
-    maxY = 20
-    minZ = 0
-    maxZ = 30
-    dX = 2
-    dY = 2
-    dZ = 2
-    constr = Rect(Point(0,-5,10), Point(5,5,20))
+    minX, maxX, dX = 0.1, 40, 2
+    minY, maxY, dY = -20, 20, 2
+    minZ, maxZ, dZ = 0, 30, 2
+    constr1 = [0,-5,10]
+    constr2 = [5,5,20]
+    constr = Rect(Point(constr1[0],constr1[1], constr1[2]), Point(constr2[0], constr2[1], constr2[2]))
     domain = Domain(Point(minX, minY, minZ), Point(maxX, maxY, maxZ), constr)
     rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
     gx, gy, gz = np.meshgrid(rx, ry, rz)
