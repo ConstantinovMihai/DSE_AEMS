@@ -2,7 +2,8 @@ import Performance_Analysis as eq
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-# import xlsxwriter
+import math as m
+import xlsxwriter
 """
 Propeller Modeling Parameters
 :param: Gp - Propeller Weight [g]
@@ -220,6 +221,7 @@ def propellerEfficiency(propellerMatrix,Cfd,labda,dzeta,K0,eta,alpha0,e,**kwargs
 
 
     return
+#propellerEfficiency(viableOptions,Cfd,labda,dzeta,K0,eta,alpha0,e)
 # propellerEfficiency(viableOptions,Cfd,labda,dzeta,K0,eta,alpha0,e)
 
 
@@ -360,7 +362,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     print(names, masses, efficiencies74N)
     plt.scatter(masses, efficiencies74N)
     plt.xlabel('masses [g]')
-    plt.ylabel('Motor efficiency at 7.4N')
+    plt.ylabel('Motor efficiency at hovering')
     for i, label in enumerate(names):
         plt.annotate(label, (masses[i], efficiencies74N[i]))
     plt.show()
@@ -384,7 +386,7 @@ def Battery_endurance(Tb, Im, Um):
     Set parameters (set for hovering thrust): motor current Im [A], motor voltage Um [V], ESC resistance Re [ohm]
     hovering time Tb [min]
     """
-    Ub_list = np.arange(10,40, 0.5)
+    Ub_list = np.arange(7.4, 40, 3.7)
     Cb_list = []
     for Ub in Ub_list:
         sigma = Um / Ub
@@ -406,6 +408,31 @@ def matrix_gen_options(SheetNumber):
     a = df.to_numpy()
     return a
 
+batteryMatrix=matrix_gen(r'.\Battery Sizing.xlsx', 0)
+
+def battery_Volume(batteryMatrix,cellConnection,mahReq):
+    winner = [0,0,10000]
+    for row in batteryMatrix:
+        names=row[0]
+        mah=row[3]
+        thickness=row[4]/10
+        width=row[5]/10
+        height=row[6]/10
+        weight=row[7]
+
+        if height <= 5 and width <= 3:
+            necessaryRows = m.ceil(mahReq/mah)
+            necessaryCells = cellConnection*necessaryRows
+            totalWeight = necessaryCells *weight
+            totalVolume = width*thickness*height*necessaryCells
+            totalthickness = necessaryRows*thickness
+
+            if totalVolume<=winner[2] and totalthickness <= 4.5:
+                winner=[names,totalWeight,totalVolume, necessaryCells, necessaryRows]
+    return print(winner)
+
+
+battery_Volume(batteryMatrix,4,4500)
 
 """
 Using/testing the fuctions (Uncomment what you want to use):
@@ -418,9 +445,10 @@ Using/testing the fuctions (Uncomment what you want to use):
 # propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
 
 # propellerComparison(eleveninchprops, labda, dzeta, K0, eta, alpha0,3.028)
-motor_matrix = matrix_gen_options(2)[0:6,0:6]
-compare_motor_efficiencies(motor_matrix, 0.15239999999999998, 0.381, labda, dzeta, K0, eta, alpha0, Cfd, e)
-# Battery_endurance(25, Im, Um)
+#motor_matrix = matrix_gen_options(2)[2:17,1:6]
+#compare_motor_efficiencies(motor_matrix, 0.1397, 0.2794, labda, dzeta, K0, eta, alpha0, Cfd, e)
+#Im, Um = motor_U_I(0.15044989095978484, 5800, 0.0295, 0.277, 0.447)
+#Battery_endurance(25, Im, Um)
 
 """
 Current choices:
