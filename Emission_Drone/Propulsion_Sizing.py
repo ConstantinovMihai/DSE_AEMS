@@ -360,7 +360,7 @@ def compare_motor_efficiencies(motor_matrix, Hp, Dp, labda, dzeta, K0, eta, alph
     print(names, masses, efficiencies74N)
     plt.scatter(masses, efficiencies74N)
     plt.xlabel('masses [g]')
-    plt.ylabel('Motor efficiency at 7.4N')
+    plt.ylabel('Motor efficiency at hovering')
     for i, label in enumerate(names):
         plt.annotate(label, (masses[i], efficiencies74N[i]))
     plt.show()
@@ -384,7 +384,7 @@ def Battery_endurance(Tb, Im, Um):
     Set parameters (set for hovering thrust): motor current Im [A], motor voltage Um [V], ESC resistance Re [ohm]
     hovering time Tb [min]
     """
-    Ub_list = np.arange(10,40, 0.5)
+    Ub_list = np.arange(7.4, 40, 3.7)
     Cb_list = []
     for Ub in Ub_list:
         sigma = Um / Ub
@@ -418,9 +418,9 @@ Using/testing the fuctions (Uncomment what you want to use):
 # propellerEfficiency(labda,dzeta,K0,eta,alpha0,e,Cfd,testmat)
 
 # propellerComparison(eleveninchprops, labda, dzeta, K0, eta, alpha0,3.028)
-motor_matrix = matrix_gen_options(2)[0:6,0:6]
+motor_matrix = matrix_gen_options(2)[0:8,0:6]
 compare_motor_efficiencies(motor_matrix, 0.15239999999999998, 0.381, labda, dzeta, K0, eta, alpha0, Cfd, e)
-# Battery_endurance(25, Im, Um)
+Battery_endurance(25, 23.81, 2.43)
 
 """
 Current choices:

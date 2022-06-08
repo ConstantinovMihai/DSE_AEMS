@@ -13,8 +13,8 @@ class Drone:
     @staticmethod
     def get_initial_mass_est():
         payload_mass = Drone.get_payload_mass()
-        weights_dict = {"structure": 800, "motors": 500, "propellers": 60, "flight_controllers": 49,\
-                        "ESC's": 120, "Arduino": 25, "battery": 900, "wiring": 100, "Obstacle avoidance": 200,\
+        weights_dict = {"structure": 800, "motors": 352, "propellers": 60, "flight_controllers": 49,\
+                        "ESC's": 88, "Arduino": 25, "battery": 792, "wiring": 100, "Obstacle avoidance": 90,\
                        "payload": payload_mass}
         return weights_dict
 
