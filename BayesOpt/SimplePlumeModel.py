@@ -1,17 +1,16 @@
+from copy import deepcopy
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from numpy.linalg import cholesky, det
 from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
-from matplotlib import animation, cm
 import math
-from sqlalchemy import Constraint
+
 from domains import Point
 from domains import Domain
 from domains import Rect
 import matplotlib.pyplot as plt
-import time
 
 #TODO Implement Proper Total Distance Travelled Calculation
 #TODO Implement Averages for ScatterPlotGenerate
@@ -205,7 +204,7 @@ def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
     # weird normalisation in mu_global takes place to help intuitively understand UCB
     return mu_s/mu_global + kappa * np.sqrt(np.diag(cov_s))
 
-def DUCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa, gamma, domain : Domain):
+def DUCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa, gamma, domain : Domain, location):
     """
     Compute total DUCB acquisition function for all concentrations
     :param X_2D: Total coordinates
@@ -214,6 +213,7 @@ def DUCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa, gamma, do
     :param noise_2D: noise of data
     :param kappa: #Exploration/Exploitation
     :param domain: Domain for distance function
+    :location: location of the last measurement
     :return: total DUCB function
     """
     # compute total acquistionFunc
@@ -226,7 +226,7 @@ def DUCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa, gamma, do
         acquisitionFunc += tempAcquisitionFunc/meanAcquisitionFunc
 
     #compute distance to travel to all locations within domain
-    lastMeasurement = X_2D_train[-1]
+    lastMeasurement = location
     distance = []
     for point in X_2D:
         p = Point(point[0], point[1], point[2])
@@ -267,6 +267,82 @@ def distanceTravelled(X_2D_train : np.array):
         X2 = X[2]
     return dist
 
+
+def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, workers_loc):
+    """
+    Proposes location for the next batch of experiments
+    Args: 
+        :param: workers_loc (np.array) - current locations of the drones
+    Returns a numpy array containing the proposed locations
+    """
+    # total number of workers
+    nb_workers = len(workers_loc)
+
+    # initially all workers are idle
+    idle = np.ones(nb_workers)
+    
+    # copy the training data, which will be appended with expected values in 
+    # order to generate predictions for all points in the workers' batch
+    x_train = deepcopy(X_2D_train)
+    y_train = deepcopy(Y_2D_train)
+
+    # proposed sampling locations
+    sample_locs = np.zeros(nb_workers)
+
+    # while there are still idle workers, continue iterating
+    while np.count_nonzero(idle):
+        acquisitionFuncs = np.zeros(nb_workers)
+        max_acq_func = np.zeros(nb_workers)
+
+        for worker_idx in range(nb_workers):
+            if idle[worker_idx]:
+                acquisitionFuncs[worker_idx] = DUCB(X_2D,  x_train, y_train, noise_2D, kappa, gamma, workers_loc[worker_idx])
+                max_acq_func[worker_idx] = np.argmax(acquisitionFuncs[worker_idx])
+                # if the new acquisition function is the highest one so far encountered
+
+        # select the next sampling location
+        assigned_worker = np.argmax(max_acq_func)
+        idle[assigned_worker] = 0
+        sample_locs[assigned_worker] = np.argmax(acquisitionFuncs[assigned_worker])
+        x_proposed = X_2D[sample_locs[assigned_worker]]
+
+        # update the X_train, Y_train arrays
+        # Assign mean and variance to each point in the domain based on concentrations
+        res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                    bounds=((1e-5, None), (1e-5, None)),
+                    method='L-BFGS-B')
+
+        mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+        # the expected value for the measurement of the proposed point
+        y_expected = mu_s[sample_locs[assigned_worker]]
+
+        x_train = np.vstack((x_train, [x_proposed[0], x_proposed[1], x_proposed[2]]))
+        y_train = np.hstack((y_train, y_expected))
+
+    # update the locations of X_2D_train
+    X_2D_train = deepcopy(x_train)    
+    return x_proposed
+
+
+def synTS(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, nb_iter : int, gamma, workers_loc, start_loc, total_time, workers_history : list, dt) -> None:
+    """
+    Propose the next locations based on the synchronous Thompson Sampling Algorithm
+
+    Args:
+        :param: prior - the prior matrix
+        :param: workers_history - tracks the entire history of the locations of the workers
+        :param: nb_iter (int) - total number of iterations
+        :param: nb_workers - total number of workers
+        :param: measurements - contains the measured quantities  
+        :param: workers_loc - contains the locations of the workers
+    """
+    for i in range(nb_iter):
+        workers_loc = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma, workers_loc)
+        print(f"The workers are at {workers_loc}")
+        # perform measurements at proposed locations
+        workers_history.append(workers_loc)
+        for sampleLocation in workers_loc:
+            Y_2D_train = np.hstack((Y_2D_train, pollutionAircraftEvent(start_loc, sampleLocation, total_time, dt)))
 
 
 def generateMesh(xDomain: np.array, yDomain: np.array, zDomain: np.array, constr1: np.array, constr2: np.array):
@@ -371,6 +447,8 @@ def pollutionAircraftEvent(aircraftStartLocation: np.array, receiverLocation : n
         tempC = np.array([sumGaussianPlume(receiverLocation, aircraftPositionEvent, time, timeStep, hEvent, aircraftSpeedEvent, windVector, Q)])
         C=np.concatenate((C, tempC))
     return C
+
+
 def mainTest():
     minX, maxX, dX = 0.1, 40, 4
     minY, maxY, dY = -20, 20, 4
@@ -378,19 +456,31 @@ def mainTest():
     constr1 = [0,-10,10]
     constr2 = [20,10,20]
     X_3D = generateMesh([minX, maxX, dX],[minY, maxY, dY], [minZ, maxZ, dZ], constr1, constr2)
-    print(X_3D)
+    #print(X_3D)
     #ScatterPlotGenerate3D(X_3D)
     aircraftStartLocation = np.array([200.0, 0, 0])
     totalTime = 10
     timeStep = 1
     status = False
+    n_workers = 2
+    X_2D_train = randomGenerate(X_3D, n_workers)
+    Y_2D_train = pollutionAircraftEvent(aircraftStartLocation, X_2D_train, totalTime, timeStep)
+    noise_2D = 0.01
+    kappa = 2000
+    nb_iter = 10
+    gamma = 0
+    workers_loc = randomGenerate(X_3D, n_workers)
+    workers_history = []
+
+    synTS(X_3D, X_2D_train, Y_2D_train, noise_2D, kappa, nb_iter, gamma, workers_loc, aircraftStartLocation, totalTime, workers_history, timeStep)
+    
     for receiverLocation in X_3D:
         if status:
             Y_3D = np.vstack((Y_3D, pollutionAircraftEvent(aircraftStartLocation, receiverLocation, totalTime, timeStep)))
         else:
             Y_3D = np.array([pollutionAircraftEvent(aircraftStartLocation, receiverLocation, totalTime, timeStep)])
             status = True
-    print(Y_3D)
+   # print(Y_3D)
 
 
 mainTest()
