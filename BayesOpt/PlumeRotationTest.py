@@ -42,15 +42,25 @@ gx, gy = np.meshgrid(rx, ry)
 
 # Generate Initial Samples
 X_2D = np.c_[gx.ravel(), gy.ravel()]
-
+print(X_2D.reshape(gx.shape).shape)
+time = [0,1,2,3]
 Y_2D = []
-for points in X_2D:
-    positionReciever = np.array([points[0], points[1], 5])
-    positionSource = np.array([0, 0, 0])
-    Y_2D.append(gaussianPlumeRot(positionReciever,positionSource, 3, 2, 5,  aircraftSpeed, windSpeed))
-Y_2D = np.array(Y_2D)
+Y_2DTime = []
+for t in time:
+    for points in X_2D:
+        positionReciever = np.array([points[0], points[1], 5])
+        positionSource = np.array([0, 0, 0])
+        Y_2D.append(gaussianPlumeRot(positionReciever,positionSource, t, 2, 5,  aircraftSpeed, windSpeed))
+    #Y_2D = np.array(Y_2D)
+    Y_2DTime.append(Y_2D)
+Y_2DTime = np.array(Y_2DTime)
+print(Y_2DTime.shape)
+
+
+
+
+"""
 plt.imshow(Y_2D.reshape(gx.shape).T, interpolation="nearest",vmin= 0, vmax=1, origin="upper")
 plt.xlabel("Y axis [m]")
 plt.ylabel("X axis [m]")
-plt.show()
-
+plt.show()"""

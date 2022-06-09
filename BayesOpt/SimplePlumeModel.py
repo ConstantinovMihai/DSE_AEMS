@@ -53,7 +53,10 @@ def gaussianPlumeInstant(receiverPosition: np.array, sourcePosition: np.array, t
     Qz = math.exp(-(distance[2] + h)**2/(2*sigma_z**2)) + math.exp(-(distance[2] - h + 2*H)**2/(2*sigma_z**2))
     C = Q1*Qx*Qy*Qz
     #Return concentration - scaled by power of 0.1 for easier analysisof plot
-    return C**0.1
+    if C<=0: #floating point errors sometimes give negative values
+        return 0
+    else:
+        return C**0.1
 
 def sumGaussianPlume(receiverPosition: np.array, aircraftPositionEvent: np.array, aircraftEventTime: float, timeStep: float, hEvent: np.array, aircraftSpeedEvent: np.array, windVector:np.array, QEvent: np.array ,H:float = 0):
     """
@@ -66,7 +69,7 @@ def sumGaussianPlume(receiverPosition: np.array, aircraftPositionEvent: np.array
     :param aircraftSpeedEvent: speed of aircraft throughtout event
     :param windVector: speed of wind set as a constant vector throughtout event
     :param QEvent: source of emissions over time
-    :return:
+    :return: concentration of plume as a function over time
     """
     C = 0
     time = aircraftEventTime
@@ -77,6 +80,8 @@ def sumGaussianPlume(receiverPosition: np.array, aircraftPositionEvent: np.array
         C += timeStep * gaussianPlumeInstant(receiverPosition, aircraftPosition, time, hEvent[i], 0, aircraftSpeedEvent[i], windVector, QEvent[i])
         time -= timeStep #as you move through the aircraft event the time between the measurement and the emission decreases
         i += 1
+        if time == 0:
+            return C
     return C
 
 def kernel(X1, X2, l=1.0, sigma_f=1.0):
@@ -363,28 +368,39 @@ def pollutionAircraftEvent(aircraftStartLocation: np.array, receiverLocation : n
     C = np.array([])
     timeArray = np.linspace(1, totalTime, int(totalTime/timeStep))
     for time in timeArray:
-        print(time)
         tempC = np.array([sumGaussianPlume(receiverLocation, aircraftPositionEvent, time, timeStep, hEvent, aircraftSpeedEvent, windVector, Q)])
         C=np.concatenate((C, tempC))
     return C
-aircraftStartLocation = np.array([200.0, 0, 0])
-receiverLocation = np.array([300,0,0])
-totalTime = 10
-timeStep = 1
-print(pollutionAircraftEvent(aircraftStartLocation, receiverLocation, totalTime, timeStep))
+def mainTest():
+    minX, maxX, dX = 0.1, 40, 4
+    minY, maxY, dY = -20, 20, 4
+    minZ, maxZ, dZ = 4, 8, 4
+    constr1 = [0,-10,10]
+    constr2 = [20,10,20]
+    X_3D = generateMesh([minX, maxX, dX],[minY, maxY, dY], [minZ, maxZ, dZ], constr1, constr2)
+    print(X_3D)
+    #ScatterPlotGenerate3D(X_3D)
+    aircraftStartLocation = np.array([200.0, 0, 0])
+    totalTime = 10
+    timeStep = 1
+    status = False
+    for receiverLocation in X_3D:
+        if status:
+            Y_3D = np.vstack((Y_3D, pollutionAircraftEvent(aircraftStartLocation, receiverLocation, totalTime, timeStep)))
+        else:
+            Y_3D = np.array([pollutionAircraftEvent(aircraftStartLocation, receiverLocation, totalTime, timeStep)])
+            status = True
+    print(Y_3D)
+
+
+mainTest()
 """
 startLocation = np.array([100.0, 0, 0])
 totalTime = 15
 timeStep = 0.5
 print(generateAircraftTakeOffEvent(startLocation, totalTime, timeStep))
-minX, maxX, dX = 0.1, 40, 2
-minY, maxY, dY = -20, 20, 2
-minZ, maxZ, dZ = 0, 30, 2
-constr1 = [0,-10,10]
-constr2 = [20,10,20]
-X_3D = generateMesh([minX, maxX, dX],[minY, maxY, dY], [minZ, maxZ, dZ], constr1, constr2)
-#ScatterPlotGenerate3D(X_3D)
-print(randomGenerate(X_3D, 5))
+
+
 
 aircraftPositionEvent = np.array([[0,0,0], [2,0,0]])
 aircraftSpeedEvent = np.array([[100,0,0], [100,0,0]])
@@ -394,7 +410,7 @@ QEvent = np.array([[10000],[10000]])
 hEvent = np.array([[0.5], [0.5]])
 C = sumGaussianPlume([10,0,0], aircraftPositionEvent, timeEvent, 0.5, hEvent,0, aircraftSpeedEvent, np.array([0,10,0]), QEvent)
 print(C)
-"""
+
 
 def main3D():
     minX, maxX, dX = 0.1, 40, 2
@@ -445,13 +461,13 @@ def main3D():
                    method='L-BFGS-B')
 
     mu_s, cov_s = posterior(X_3D, X_3D_train, Y_3D_train, *res.x, sigma_y=noise_3D)
-    """
+    
     print(RMSE(Y_3D, mu_s))
     fig = plt.figure(figsize=(4, 4))
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(gx, gy, gz, c=mu_s)
-    plt.show()"""
+    plt.show()
     cutPlot(X_3D, X_3D_train, Y_3D_train, noise_3D, gx, gy, gaussianPlume)
     plt.show()
-
+"""
 #main3D()
