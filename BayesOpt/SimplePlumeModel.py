@@ -221,11 +221,11 @@ def DUCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa, gamma, lo
     # compute total acquistionFunc
     acquisitionFunc = 0
     # go through the acquisitionFunc for each concentration
-    for Y_2D_train in Y_2D_train_concentrations:
-        tempAcquisitionFunc = UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa)
-        #normalise acquisitionFunction for each concentration
-        meanAcquisitionFunc = np.mean(tempAcquisitionFunc)
-        acquisitionFunc += tempAcquisitionFunc/meanAcquisitionFunc
+    # for Y_2D_train in Y_2D_train_concentrations:
+    tempAcquisitionFunc = UCB(X_2D, X_2D_train, Y_2D_train_concentrations, noise_2D, kappa)
+    #normalise acquisitionFunction for each concentration
+    meanAcquisitionFunc = np.mean(tempAcquisitionFunc)
+    acquisitionFunc += tempAcquisitionFunc/meanAcquisitionFunc
 
     #compute distance to travel to all locations within domain
     lastMeasurement = location
@@ -402,6 +402,7 @@ def randomGenerate(X_3D: np.array, nRand: int):
     """
     return X_3D[np.random.randint(len(X_3D), size=nRand)]
 
+
 def generateAircraftTakeOffEvent(startLocation : np.array, totalTime: float, timeStep: float):
     """
     Simulate aircraft takeOff Event
@@ -494,82 +495,4 @@ def mainTest():
             status = True
    # print(Y_3D)
 
-
 mainTest()
-"""
-startLocation = np.array([100.0, 0, 0])
-totalTime = 15
-timeStep = 0.5
-print(generateAircraftTakeOffEvent(startLocation, totalTime, timeStep))
-
-
-
-aircraftPositionEvent = np.array([[0,0,0], [2,0,0]])
-aircraftSpeedEvent = np.array([[100,0,0], [100,0,0]])
-timeEvent = 1
-aircraftSpeedEvent = np.array([[3,5,0], [3,5,0]])
-QEvent = np.array([[10000],[10000]])
-hEvent = np.array([[0.5], [0.5]])
-C = sumGaussianPlume([10,0,0], aircraftPositionEvent, timeEvent, 0.5, hEvent,0, aircraftSpeedEvent, np.array([0,10,0]), QEvent)
-print(C)
-
-
-def main3D():
-    minX, maxX, dX = 0.1, 40, 2
-    minY, maxY, dY = -20, 20, 2
-    minZ, maxZ, dZ = 0, 30, 2
-    constr1 = [0,-5,10]
-    constr2 = [5,5,20]
-    constr = Rect(Point(constr1[0],constr1[1], constr1[2]), Point(constr2[0], constr2[1], constr2[2]))
-    domain = Domain(Point(minX, minY, minZ), Point(maxX, maxY, maxZ), constr)
-    rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
-    gx, gy, gz = np.meshgrid(rx, ry, rz)
-    X_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
-    # Explore/Exploit TradeOff
-    # kappa = 15 #exploration/exploitation constant
-    kappa = 3000
-    #gamma = -0.1  # cost-to-evaluate
-    gamma = 0
-    initialSamples = 20 # random initial samples
-    nIter = 10  # number of points selected by BO algorithm
-    noise_3D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
-
-    X_3D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]])
-    for i in range(initialSamples):
-        X_3D_train = np.vstack((X_3D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]))
-
-    Y_3D_train = []
-    for points in X_3D_train:
-        Y_3D_train.append(gaussianPlume(points[0], points[1], points[2]) + noise_3D * np.random.randn())
-    Y_3D_train = np.array(Y_3D_train)
-
-    Y_3D = []
-    for points in X_3D:
-        Y_3D.append(gaussianPlume(points[0], points[1], points[2]) + noise_3D * np.random.randn())
-    Y_3D = np.array(Y_3D)
-
-    for i in range(nIter):
-        print("sampling number: ", i)
-        sampleLocation = proposeLocation(X_3D, X_3D_train, Y_3D_train, noise_3D, kappa, gamma, domain)
-        print("sample location: ", sampleLocation)
-        X_3D_train = np.vstack((X_3D_train, [sampleLocation[0], sampleLocation[1], sampleLocation[2]]))
-        Y_3D_train = np.hstack(
-            (Y_3D_train, gaussianPlume(sampleLocation[0], sampleLocation[1], sampleLocation[2]) + noise_3D * np.random.randn()))
-
-
-    print("Total Distance Travelled: ", distanceTravelled(X_3D_train[initialSamples:]))
-    res = minimize(nll_fn(X_3D_train, Y_3D_train, noise_3D), [1, 1],
-                   bounds=((1e-5, None), (1e-5, None)),
-                   method='L-BFGS-B')
-
-    mu_s, cov_s = posterior(X_3D, X_3D_train, Y_3D_train, *res.x, sigma_y=noise_3D)
-    
-    print(RMSE(Y_3D, mu_s))
-    fig = plt.figure(figsize=(4, 4))
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(gx, gy, gz, c=mu_s)
-    plt.show()
-    cutPlot(X_3D, X_3D_train, Y_3D_train, noise_3D, gx, gy, gaussianPlume)
-    plt.show()
-"""
-#main3D()
