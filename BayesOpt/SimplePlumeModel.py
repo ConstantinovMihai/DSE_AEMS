@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 #TODO Implement Proper Total Distance Travelled Calculation
 #TODO Implement Averages for ScatterPlotGenerate
-#TODO SumGaussianPlume giving wrong values
+#TODO Implement for multiple concentrations
 
 
 def gaussianPlumeInstant(receiverPosition: np.array, sourcePosition: np.array, time: float, h: float, H:float, aircraftSpeed: np.array, windVector: np.array, Q: float =10000):  # x,y coordinates relative to source, z in real coordinates
@@ -197,6 +197,9 @@ def UCB(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa):
     :return: total value of ucb value
     """
     #Assign mean and variance to each point in the domain based on concentration
+    print(X_2D_train)
+    print(Y_2D_train)
+    print(noise_2D)
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
