@@ -121,7 +121,7 @@ def simulatePassOver(d : float, vel : float, pwl : float, start :float, alpha : 
     n_steps = int(tot_time / dt)
     noise = np.zeros(n_steps)
     times = np.arange(0, tot_time, dt)
-    x_coords = np.arange(start, tot_time, dt * vel)
+    x_coords = np.arange(start, tot_time * vel + start, dt * vel)
 
     for idx, x in enumerate(x_coords):
         ac.setX(x)
@@ -132,7 +132,7 @@ def simulatePassOver(d : float, vel : float, pwl : float, start :float, alpha : 
     if plot:
         plt.plot(times, noise)
         plt.ylabel("Noise (dB)")
-        plt.xlabel("Distance (m)")
+        plt.xlabel("Time (s)")
         plt.show()
 
     return noise
@@ -233,56 +233,3 @@ def nll_fnQuadratic(X_train, Y_train, noise, naive=True):
         return nll_naive
     else:
         return nll_stable
-
-def noiseSim():
-    minX = -600
-    maxX = -600+1501
-    minY = 0
-    maxY = 20
-    minZ = 0
-    maxZ = 20
-    dX = 1
-    dY = 20
-    dZ = 20
-    constr = Rect(Point(0,-5,10), Point(0,-5,10))
-    domain = Domain(Point(minX, minY, minZ), Point(maxX, maxY, maxZ), constr)
-    rx, ry, rz = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY), np.arange(minZ, maxZ, dZ)
-    gx, gy, gz = np.meshgrid(rx, ry, rz)
-    X_3D = np.c_[gx.ravel(), gy.ravel(), gz.ravel()]
-
-    noise_data = simulatePassOver(100, 50, 150, -600, 0.0085, 1500)
-    
-    # Explore/Exploit TradeOff
-    # kappa = 15 #exploration/exploitation constant
-    kappa = 3000
-    #gamma = -0.1  # cost-to-evaluate
-    gamma = 0
-    initialSamples = 20 # random initial samples
-    nIter = 20  # number of points selected by BO algorithm
-    noise_3D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
-
-    X_3D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]])
-    for i in range(initialSamples):
-        X_3D_train = np.vstack((X_3D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY), np.random.uniform(minZ, maxZ)]))
-
-    Y_3D_train = []
-    for points in X_3D_train:
-        Y_3D_train.append(noise_data[int(points[0])])
-    Y_3D_train = np.array(Y_3D_train)
-
-    Y_3D = []
-    for points in X_3D:
-        Y_3D.append(noise_data[int(points[0])] + noise_3D * np.random.randn())
-    Y_3D = np.array(Y_3D)
-
-    for i in range(nIter):
-        print("sampling number: ", i)
-        sampleLocation = NoiseBO.proposeLocation(X_3D, X_3D_train, Y_3D_train, noise_3D, kappa, gamma, domain)
-        print("sample location: ", sampleLocation)
-        X_3D_train = np.vstack((X_3D_train, [sampleLocation[0], sampleLocation[1], sampleLocation[2]]))
-        Y_3D_train = np.hstack(
-            (Y_3D_train, noise_data[int(sampleLocation[0])] + noise_3D * np.random.randn()))
-
-
-if __name__ == "__main__":
-    noiseSim()
