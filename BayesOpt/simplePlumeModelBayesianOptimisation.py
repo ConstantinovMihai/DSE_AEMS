@@ -7,7 +7,7 @@ from scipy.optimize import minimize
 from matplotlib import animation, cm
 import math
 
-np.random.seed(2314)
+#np.random.seed(2314)
 
 
 def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordinates
@@ -169,7 +169,7 @@ def proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma):
 
 def parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy):
     # Plotting Results
-    plt.figure(figsize=(14, 7))
+    plt.figure(figsize=(14, 14))
 
     #mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
     #plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train,
@@ -202,9 +202,15 @@ def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     fig, (ax1, ax2) = plt.subplots(1, 2)
     print("Root mean square error is: ",RMSE(mu, mu_s))
+    ax1.set_title('True Values')
+    ax1.set_xlabel('distance [m]')
+    ax1.set_ylabel('distance [m]')
     ax1.imshow(mu.reshape(gx.shape).T, interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
     # plt.gca().invert_yaxis()
+    ax2.set_title('Bayesian Optimisation \n with 10 random samples \n and 40 selected samples')
     ax2.imshow(mu_s.reshape(gx.shape).T, interpolation="nearest",vmin=0, vmax=1, origin="upper")
+    ax2.set_xlabel('distance [m]')
+    ax2.set_ylabel('distance [m]')
         # plt.gca().invert_yaxis()
     plt.show()
 
@@ -222,18 +228,18 @@ def distanceTravelled(X_2D_train):
 # Determine Domain Size and Width
 minX = 0.1
 maxX = 50
-minY = -20
-maxY = 20
+minY = -10
+maxY = 10
 dX = 1
 dY = 1
 
 # Explore/Exploit TradeOff
 #kappa = 15 #exploration/exploitation constant
-kappa = 70
-gamma = -0.1 #cost-to-evaluate
-#gamma = 0
+kappa = 20
+#gamma = -0.01 #cost-to-evaluate
+gamma = 0
 initialSamples = 10 #random initial samples
-nIter = 100 #number of points selected by BO algorithm
+nIter = 90 #number of points selected by BO algorithm
 noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
@@ -260,5 +266,5 @@ for i in range(nIter):
     Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1]) + noise_2D * np.random.randn()))
 
 print("Total Distance Travelled: ", distanceTravelled(X_2D_train[initialSamples:]))
-parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy)
-#cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
+#parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy)
+cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
