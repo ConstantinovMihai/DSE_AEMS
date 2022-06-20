@@ -6,8 +6,79 @@ from scipy.linalg import solve_triangular
 from scipy.optimize import minimize
 from matplotlib import animation, cm
 import math
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 #np.random.seed(2314)
+np.random.seed(2319)
+def gaussianPlumeInstant(receiverPosition: np.array, time: float,windVector: np.array):  # x,y coordinates relative to source, z in real coordinates
+    """
+    Function called by sumGaussianPlume
+    Calculates the concentration as a result of the plume at a specific instant in time
+    :param receiverPosition: specific position of measurement of value e.g. drone
+    :param sourcePosition: specific position of the source of the emission e.g. aircraft
+    :param time: time of event
+    :param h: height of the source with respect to the ground
+    :param H: float
+    :param aircraftSpeed: np.array[xVelocity, yVelocity, zVelocity]
+    :param windVector: np.array[xVelocity, yVelocity, zVelocity]
+    :param Q: float
+    :return:
+    """
+    #calculate distance between reciever and position
+    distance = receiverPosition
+    #aircraft plume dispersion
+    alpha = 0.02
+    aircraftSpeed = np.array([200,0,0])
+    wind = aircraftSpeed*math.exp(-alpha*distance[0])
+    #create overall dispersion
+    wind += windVector
+    h = 5
+    H = 0
+    #y axis wind flipped due to weird flipped behavior
+    wind[1] = -wind[1]
+    #dispersion coefficients
+    sigma_x = 0.22*distance[0]*(1+0.0001*distance[0])**(-0.5)
+    sigma_y = sigma_x
+    sigma_z = 0.2*distance[0]
+    #Generate Gaussian Plume Model based on Kazakh Paper
+    Q = 10000
+    Q1 = Q/((2*math.pi)**(1.5)*sigma_x*sigma_y*sigma_z)
+    Qx = math.exp(-((distance[0])*wind[0] - (distance[1])*wind[1] - (wind[0]**2 + wind[1]**2)*(time))**2/(2*(sigma_x**2)*(wind[0]**2 + wind[1]**2)))
+    Qy = math.exp(-(distance[0]*wind[1] + distance[1]*wind[0])**2/(2*(sigma_y**2)*(wind[0]**2 + wind[1]**2)))
+    Qz = math.exp(-(distance[2] + h)**2/(2*sigma_z**2)) + math.exp(-(distance[2] - h + 2*H)**2/(2*sigma_z**2))
+    C = Q1*Qx*Qy*Qz
+    #Return concentration - scaled by power of 0.1 for easier analysisof plot
+    if C<=0: #floating point errors sometimes give negative values
+        return 0
+    else:
+        return C
+
+def sumGaussianPlume(receiverPosition: np.array,   windVector:np.array):
+    """
+    Calculates the total Gaussian Plume experienced by the reciever due to the source moving in time
+    :param receiverPosition: constant position of reciever over time
+    :param aircraftPositionEvent: array containing position of aircraft over time contained as a matrix
+    :param timeStep: total time step of the process
+    :param h: height of the source with respect to the ground (considered as changing over time due to takeoff/landing)
+    :param H: mixing layer Height (set to 0)
+    :param aircraftSpeedEvent: speed of aircraft throughtout event
+    :param windVector: speed of wind set as a constant vector throughtout event
+    :param QEvent: source of emissions over time
+    :return: concentration of plume as a function over time
+    """
+    aircraftEventTime = 1
+    timeStep = 0.1
+    C = 0
+    time = aircraftEventTime
+    i = 0
+    #sum over time
+    while True:
+        #H is set to zero
+        C += timeStep * gaussianPlumeInstant(receiverPosition,time, windVector)
+        time -= timeStep #as you move through the aircraft event the time between the measurement and the emission decreases
+        i += 1
+        if time < 0:
+            return C
 
 
 def gaussianPlume(x, y):  # x,y coordinates relative to source, z in real coordinates
@@ -46,10 +117,22 @@ def kernel(X1, X2, l=1.0, sigma_f=1.0):
 
 
 def plot_gp_2D(gx, gy, mu, X_train, Y_train, title, i):
-    ax = plt.gcf().add_subplot(1, 2, i, projection='3d')
-    ax.plot_surface(gx, gy, mu.reshape(gx.shape), cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
-    ax.scatter(X_train[:, 0], X_train[:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
-    ax.set_title(title)
+    print(title)
+    ax1 = plt.gcf().add_subplot(1, 2, 1, projection='3d')
+    ax1.plot_surface(gx, gy, mu.reshape(gx.shape), cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
+    ax1.scatter(X_train[:, 0], X_train[:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
+    ax1.set_xlabel("x coordinate [m]")
+    ax1.set_ylabel("y coordinate [m]")
+    ax1.set_zlabel("\n Proportional concentration \n magnitude[-]")
+    ax1.view_init(0,270)
+    ax1 = plt.gcf().add_subplot(1, 2, 2, projection='3d')
+    ax1.plot_surface(gx, gy, mu.reshape(gx.shape), cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
+    ax1.scatter(X_train[:, 0], X_train[:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
+    ax1.set_xlabel("x coordinate [m]")
+    ax1.set_ylabel("y coordinate [m]")
+    #ax1.set_zlabel("Proportional concentration magnitude[-]")
+    ax1.view_init(elev=90, azim=270)
+
 
 
 def posterior(X_s, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1e-8):
@@ -195,6 +278,7 @@ def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
     for X in X_2D:
         mu.append(func(X[0], X[1]))
     mu = np.array(mu)
+
     res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
                    bounds=((1e-5, None), (1e-5, None)),
                    method='L-BFGS-B')
@@ -202,15 +286,44 @@ def cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
     mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
     fig, (ax1, ax2) = plt.subplots(1, 2)
     print("Root mean square error is: ",RMSE(mu, mu_s))
+    mu = mu.reshape(gx.shape).T
+    mu_s = mu_s.reshape(gx.shape).T
     ax1.set_title('True Values')
     ax1.set_xlabel('distance [m]')
     ax1.set_ylabel('distance [m]')
-    ax1.imshow(mu.reshape(gx.shape).T, interpolation="nearest",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation
-    # plt.gca().invert_yaxis()
-    ax2.set_title('Bayesian Optimisation \n with 10 random samples \n and 40 selected samples')
-    ax2.imshow(mu_s.reshape(gx.shape).T, interpolation="nearest",vmin=0, vmax=1, origin="upper")
+    ax1.imshow(mu, interpolation="none",vmin= 0, vmax=1, origin="upper") #Only C between 0 and 1 coloured for interpretation)
+    ax2.set_title('Intelligent Sampling')
+    im = ax2.imshow(mu_s, interpolation="none",vmin=0, vmax=1, origin="upper")
+    #i, j = np.unravel_index(mu_s.argmin(), mu_s.shape)
+
+    ax2.scatter(X_2D_train[:,1]+20, X_2D_train[:,0]-20, color='r')
     ax2.set_xlabel('distance [m]')
     ax2.set_ylabel('distance [m]')
+    divider = make_axes_locatable(ax2)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
+        # plt.gca().invert_yaxis()
+    plt.show()
+
+def partialCutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, func):
+    res = minimize(nll_fn(X_2D_train, Y_2D_train, noise_2D), [1, 1],
+                   bounds=((1e-5, None), (1e-5, None)),
+                   method='L-BFGS-B')
+
+    mu_s, cov_s = posterior(X_2D, X_2D_train, Y_2D_train, *res.x, sigma_y=noise_2D)
+
+    mu_s = mu_s.reshape(gx.shape).T
+    fig, (ax) = plt.subplots(1, 1)
+    ax.set_title('Intelligent Sampling')
+    im = ax.imshow(mu_s, interpolation="none",vmin=0, vmax=1, origin="upper")
+    #i, j = np.unravel_index(mu_s.argmin(), mu_s.shape)
+
+    ax.scatter((X_2D_train[:,1])+20, (X_2D_train[:,0])-20, color='r')
+    ax.set_xlabel('distance [m]')
+    ax.set_ylabel('distance [m]')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    plt.colorbar(im, cax=cax)
         # plt.gca().invert_yaxis()
     plt.show()
 
@@ -226,21 +339,22 @@ def distanceTravelled(X_2D_train):
 
 
 # Determine Domain Size and Width
-minX = 0.1
-maxX = 50
-minY = -10
-maxY = 10
+minX = 20
+maxX = 80
+minY = -20
+maxY = 20
 dX = 1
 dY = 1
 
 # Explore/Exploit TradeOff
 #kappa = 15 #exploration/exploitation constant
-kappa = 20
+kappa = 15
 #gamma = -0.01 #cost-to-evaluate
 gamma = 0
-initialSamples = 10 #random initial samples
-nIter = 90 #number of points selected by BO algorithm
-noise_2D = 0.01  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
+initialSamples = 1 #random initial samples
+nIter = 7
+#number of points selected by BO algorithm
+noise_2D = 0.001  # Needs a small noise otherwise kernel can become positive semi-definite which leads to minimise() not working
 
 rx, ry = np.arange(minX, maxX, dX), np.arange(minY, maxY, dY)
 gx, gy = np.meshgrid(rx, ry)
@@ -251,20 +365,24 @@ X_2D = np.c_[gx.ravel(), gy.ravel()]
 X_2D_train = np.array([[np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]])
 for i in range(initialSamples):
     X_2D_train = np.vstack((X_2D_train, [np.random.uniform(minX, maxX), np.random.uniform(minY, maxY)]))
-
+# pls cut the initial 10% of the plot, the singularity is hard to reconstruct qnd physically unrealistic
+#I think there are more important things to do rn such as the acuqisition then i can do that you want it now?
+# not necessarily, but it would be smth nice to have and not very long to implement i think
+# i think all that needs to be done is to not let GP sample the top 10% of the map, and plot only the bottom 90% of both graphs
 Y_2D_train = []
 for points in X_2D_train:
-    Y_2D_train.append(gaussianPlume(points[0], points[1]) + noise_2D * np.random.randn())
+    Y_2D_train.append(gaussianPlume(points[0], points[1]))
 Y_2D_train = np.array(Y_2D_train)
 
 # Selection of new sampling locations
 for i in range(nIter):
-    print("sampling number: ", i)
-    sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
-    print("sample location: ", sampleLocation)
-    X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
-    Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1]) + noise_2D * np.random.randn()))
-
-print("Total Distance Travelled: ", distanceTravelled(X_2D_train[initialSamples:]))
-#parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy)
+    #print("sampling number: ", i)
+    for i in range(3):
+        sampleLocation = proposeLocation(X_2D, X_2D_train, Y_2D_train, noise_2D, kappa, gamma)
+        #print("sample location: ", sampleLocation)
+        X_2D_train = np.vstack((X_2D_train, [sampleLocation[0], sampleLocation[1]]))
+        Y_2D_train = np.hstack((Y_2D_train, gaussianPlume(sampleLocation[0], sampleLocation[1])))
 cutPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy, gaussianPlume)
+plt.show()
+print("Total Distance Travelled: ", distanceTravelled(X_2D_train))
+#parametrisationPlot(X_2D, X_2D_train, Y_2D_train, noise_2D, gx, gy)
